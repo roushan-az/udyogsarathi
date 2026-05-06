@@ -1,113 +1,146 @@
-// src/context/AppContext.tsx
-import type {ReactNode } from 'react';
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import type { Document, FilterOptions, PaginationState } from '../types';
+import type { ReactNode} from 'react';
+import React, {
+  createContext, useContext, useState,
+  useCallback, useEffect} from 'react';
+import type { Document, FilterOptions, PaginationState, DashboardStats } from '../types';
+import { documentService } from '../services/api';
+import { MOCK_DOCUMENTS, MOCK_STATS } from '../services/mockData';
 
-import type { DashboardStats } from '../types';
-import { MOCK_DOCUMENTS, MOCK_STATS } from '../services/api';
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+
+// ── Context shape ─────────────────────────────────────────────────────────────
 
 interface AppContextValue {
-  documents: Document[];
-  stats: DashboardStats | null;
-  filters: FilterOptions;
-  pagination: PaginationState;
-  isLoading: boolean;
-  sidebarCollapsed: boolean;
-  setFilters: (filters: FilterOptions) => void;
-  setPagination: (pagination: Partial<PaginationState>) => void;
-  setSidebarCollapsed: (collapsed: boolean) => void;
-  addDocument: (doc: Document) => void;
-  removeDocument: (id: string) => void;
-  refreshDocuments: () => Promise<void>;
-  refreshStats: () => Promise<void>;
+  documents:          Document[];
+  stats:              DashboardStats | null;
+  filters:            FilterOptions;
+  pagination:         PaginationState;
+  isLoading:          boolean;
+  statsLoading:       boolean;
+  error:              string | null;
+  sidebarCollapsed:   boolean;
+  currentUser:        { name: string; email: string } | null;
+  setFilters:         (f: FilterOptions) => void;
+  setPagination:      (p: Partial<PaginationState>) => void;
+  setSidebarCollapsed:(v: boolean) => void;
+  setCurrentUser:     (u: { name: string; email: string } | null) => void;
+  addDocument:        (doc: Document) => void;
+  removeDocument:     (id: string) => void;
+  refreshDocuments:   (filters?: FilterOptions, pagination?: Partial<PaginationState>) => Promise<void>;
+  refreshStats:       () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
+// ── Provider ──────────────────────────────────────────────────────────────────
+
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [documents, setDocuments] = useState<Document[]>(MOCK_DOCUMENTS);
-  const [stats, setStats] = useState<DashboardStats | null>(MOCK_STATS);
-  const [isLoading, setIsLoading] = useState(false);
+  const [documents,        setDocuments]        = useState<Document[]>(USE_MOCK ? MOCK_DOCUMENTS : []);
+  const [stats,            setStats]            = useState<DashboardStats | null>(USE_MOCK ? MOCK_STATS : null);
+  const [isLoading,        setIsLoading]        = useState(!USE_MOCK);
+  const [statsLoading,     setStatsLoading]     = useState(!USE_MOCK);
+  const [error,            setError]            = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [filters, setFilters] = useState<FilterOptions>({ category: 'All', status: 'All' });
-  const [pagination, setPaginationState] = useState<PaginationState>({
-    page: 1,
-    pageSize: 10,
-    total: MOCK_DOCUMENTS.length,
-  });
+  const [currentUser,      setCurrentUser]      = useState<{ name: string; email: string } | null>(null);
+  const [filters,          setFilters]          = useState<FilterOptions>({ category: 'All', status: 'All' });
+  const [pagination,       setPaginationState]  = useState<PaginationState>({ page: 1, pageSize: 10, total: 0 });
 
   const setPagination = useCallback((partial: Partial<PaginationState>) => {
-    setPaginationState((prev) => ({ ...prev, ...partial }));
+    setPaginationState(prev => ({ ...prev, ...partial }));
   }, []);
 
+  // ── Fetch documents from backend ──────────────────────────────────────────
+
+  const refreshDocuments = useCallback(async (
+    overrideFilters?: FilterOptions,
+    overridePagination?: Partial<PaginationState>,
+  ) => {
+    if (USE_MOCK) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const f = overrideFilters  ?? filters;
+      const p = overridePagination ?? pagination;
+      const data = await documentService.getDocuments(f, p);
+      setDocuments(data.documents);
+      setPaginationState(prev => ({ ...prev, total: data.total }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load documents';
+      setError(msg);
+      console.error('[AppContext] refreshDocuments:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters, pagination]);
+
+  // ── Fetch dashboard stats from backend ────────────────────────────────────
+
+  const refreshStats = useCallback(async () => {
+    if (USE_MOCK) return;
+
+    setStatsLoading(true);
+    try {
+      const data = await documentService.getDashboardStats();
+      setStats(data);
+    } catch (err) {
+      console.error('[AppContext] refreshStats:', err);
+      // Non-fatal — dashboard still renders with stale/empty stats
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  // ── Bootstrap: load data once on mount ───────────────────────────────────
+
+  useEffect(() => {
+    if (USE_MOCK) return;
+    refreshDocuments();
+    refreshStats();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Optimistic local mutations ────────────────────────────────────────────
+
   const addDocument = useCallback((doc: Document) => {
-    setDocuments((prev) => [doc, ...prev]);
-    setStats((prev) =>
-      prev
-        ? {
-            ...prev,
-            totalDocuments: prev.totalDocuments + 1,
-            documentsThisMonth: prev.documentsThisMonth + 1,
-            categoryCounts: {
-              ...prev.categoryCounts,
-              [doc.category]: (prev.categoryCounts[doc.category] || 0) + 1,
-            },
-          }
-        : prev
-    );
+    setDocuments(prev => [doc, ...prev]);
+    setPaginationState(prev => ({ ...prev, total: prev.total + 1 }));
+    setStats(prev => prev ? {
+      ...prev,
+      totalDocuments: prev.totalDocuments + 1,
+      documentsThisMonth: prev.documentsThisMonth + 1,
+      categoryCounts: {
+        ...prev.categoryCounts,
+        [doc.category]: (prev.categoryCounts[doc.category] ?? 0) + 1,
+      },
+    } : prev);
   }, []);
 
   const removeDocument = useCallback((id: string) => {
-    setDocuments((prev) => {
-      const removed = prev.find((d) => d.id === id);
+    setDocuments(prev => {
+      const removed = prev.find(d => d.id === id);
       if (removed) {
-        setStats((s) =>
-          s
-            ? {
-                ...s,
-                totalDocuments: s.totalDocuments - 1,
-                categoryCounts: {
-                  ...s.categoryCounts,
-                  [removed.category]: Math.max(0, (s.categoryCounts[removed.category] || 1) - 1),
-                },
-              }
-            : s
-        );
+        setStats(s => s ? {
+          ...s,
+          totalDocuments: s.totalDocuments - 1,
+          categoryCounts: {
+            ...s.categoryCounts,
+            [removed.category]: Math.max(0, (s.categoryCounts[removed.category] ?? 1) - 1),
+          },
+        } : s);
+        setPaginationState(p => ({ ...p, total: Math.max(0, p.total - 1) }));
       }
-      return prev.filter((d) => d.id !== id);
+      return prev.filter(d => d.id !== id);
     });
   }, []);
 
-  const refreshDocuments = useCallback(async () => {
-    setIsLoading(true);
-    // In production: await documentService.getDocuments(filters, pagination)
-    await new Promise((r) => setTimeout(r, 600));
-    setIsLoading(false);
-  }, []);
-
-  const refreshStats = useCallback(async () => {
-    // In production: const s = await documentService.getDashboardStats()
-    await new Promise((r) => setTimeout(r, 300));
-  }, []);
-
   return (
-    <AppContext.Provider
-      value={{
-        documents,
-        stats,
-        filters,
-        pagination,
-        isLoading,
-        sidebarCollapsed,
-        setFilters,
-        setPagination,
-        setSidebarCollapsed,
-        addDocument,
-        removeDocument,
-        refreshDocuments,
-        refreshStats,
-      }}
-    >
+    <AppContext.Provider value={{
+      documents, stats, filters, pagination,
+      isLoading, statsLoading, error,
+      sidebarCollapsed, currentUser,
+      setFilters, setPagination, setSidebarCollapsed, setCurrentUser,
+      addDocument, removeDocument, refreshDocuments, refreshStats,
+    }}>
       {children}
     </AppContext.Provider>
   );

@@ -30,7 +30,7 @@ interface SidebarProps {
   onMobileClose?: () => void
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onMobileClose }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
   const { sidebarCollapsed, setSidebarCollapsed } = useApp()
   const location = useLocation()
 

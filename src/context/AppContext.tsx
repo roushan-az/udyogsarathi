@@ -1,7 +1,5 @@
 import type { ReactNode} from 'react';
-import React, {
-  createContext, useContext, useState,
-  useCallback, useEffect} from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Document, FilterOptions, PaginationState, DashboardStats } from '../types';
 import { documentService } from '../services/api';
 import { MOCK_DOCUMENTS, MOCK_STATS } from '../services/mockData';

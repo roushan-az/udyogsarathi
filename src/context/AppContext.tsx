@@ -91,8 +91,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // ── Bootstrap: load data once on mount ───────────────────────────────────
 
-  useEffect(() => {
+useEffect(() => {
     if (USE_MOCK) return;
+    
+    // BREAK THE LOOP: Do not fetch dashboard data if we are on the login page!
+    if (window.location.pathname === '/login') {
+      return; 
+    }
+
     refreshDocuments();
     refreshStats();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

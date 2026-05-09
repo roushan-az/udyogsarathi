@@ -1,13 +1,5 @@
 # .github/workflows/azure-static-web-apps.yml
-#
-# Udyog Sarathi — React Frontend CI/CD
-# Deploys to Azure Static Web Apps (Free Tier)
-#
-# Required GitHub Secrets (Settings → Secrets → Actions):
-#   AZURE_STATIC_WEB_APPS_API_TOKEN   ← deployment token from Azure portal
-#
-# Required GitHub Variables (Settings → Variables → Actions):  [optional]
-#   VITE_API_URL   ← override the backend URL per environment
+# Udyog Sarathi — React Frontend CI/CD → Azure Static Web Apps (Free Tier)
 
 name: Azure Static Web Apps CI/CD
 
@@ -20,124 +12,115 @@ on:
     branches:
       - main
 
-# Cancel any in-progress run for the same branch when a new commit is pushed
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+
   # ── BUILD & DEPLOY ──────────────────────────────────────────────────────────
   build_and_deploy:
     name: Build and Deploy
-    # Run on push to main, or on an open/updated PR (not on PR close)
     if: >
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read        # checkout
-      pull-requests: write  # post deployment URL comment on PRs
+      contents: read
+      pull-requests: write
+      id-token: write
 
     steps:
-      # 1 — Checkout source
+
+      # STEP 0 — Print diagnostic info to help debug token/resource mismatches.
+      # The token value is masked (***) but we can see whether it resolved at all.
+      - name: Diagnose deployment token
+        shell: bash
+        env:
+          SWA_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        run: |
+          echo "──────────────────────────────────────────────"
+          echo "  GitHub run   : $GITHUB_RUN_ID"
+          echo "  Repository   : $GITHUB_REPOSITORY"
+          echo "  Ref          : $GITHUB_REF"
+          echo "  Token set    : $( [ -n "$SWA_TOKEN" ] && echo YES || echo NO ← SECRET MISSING )"
+          echo "  Token length : ${#SWA_TOKEN}"
+          echo "──────────────────────────────────────────────"
+          if [ -z "$SWA_TOKEN" ]; then
+            echo "::error::AZURE_STATIC_WEB_APPS_API_TOKEN is empty."
+            echo "::error::Check GitHub → Settings → Secrets — the name must match exactly."
+            exit 1
+          fi
+
+      # STEP 1 — Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: false   # set true only if you use git submodules
+          submodules: false
           lfs: false
 
-      # 2 — Set up Node.js (must match your local / Vite requirements)
+      # STEP 2 — Node 20 + npm cache
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          # cache-dependency-path tells the action where package-lock.json lives
-          # Adjust if your frontend is in a sub-folder, e.g. 'frontend/package-lock.json'
           cache-dependency-path: package-lock.json
 
-      # 3 — Install dependencies
-      #     Using --frozen-lockfile ensures the build is reproducible;
-      #     it fails if package-lock.json is out of sync with package.json.
+      # STEP 3 — Install
       - name: Install dependencies
-        run: npm ci --frozen-lockfile
+        run: npm ci
 
-      # 4 — Type-check + Build
-      #     VITE_* env vars are injected here so they are baked into the bundle.
-      #     Never put secrets in VITE_ vars — they are visible in the browser.
-      - name: Build (tsc + vite build)
+      # STEP 4 — Build  (VITE_* vars baked into the JS bundle here)
+      - name: Build
         run: npm run build
         env:
-          # Backend FastAPI URL — baked into the JS bundle at build time
+          NODE_ENV: production
           VITE_API_URL: "https://udyog-sarathi-api-fzfqcwdzepavedd0.centralindia-01.azurewebsites.net/api"
-          # Disable mock mode in production
           VITE_USE_MOCK: "false"
-          # Azure display values shown read-only on the Settings page
           VITE_AZURE_STORAGE_ACCOUNT: "udyogsarathi"
           VITE_AZURE_CONTAINER: "documents"
           VITE_PG_HOST: "udyog-db.postgres.database.azure.com"
           VITE_PG_DB: "udyog_sarathi"
-          # Silence Vite's "build.target" warnings on CI
-          NODE_ENV: "production"
 
-      # 5 — Upload the pre-built dist/ folder to Azure Static Web Apps
-      #     We pre-build in step 4 so we have full control over env vars.
-      #     skip_app_build: true tells the Azure action NOT to run its own build.
+      # STEP 5 — Deploy pre-built dist/ to Azure Static Web Apps
+      # skip_app_build: true  → we already built above, Azure must NOT re-build
       - name: Deploy to Azure Static Web Apps
         id: deploy
         uses: Azure/static-web-apps-deploy@v1
         with:
-          # Secret: go to Azure portal → your Static Web App → Manage deployment token
-          # Add it to GitHub: Settings → Secrets and variables → Actions → New repository secret
-          # Name it exactly: AZURE_STATIC_WEB_APPS_API_TOKEN
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-
-          # Allows the action to post a staging-URL comment on pull requests
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-
           action: "upload"
-
-          # Folder containing your index.html / package.json
-          # If your React app is in a sub-folder change this, e.g. "frontend"
           app_location: "/"
-
-          # We built manually in step 4 — tell Azure to skip its own build
+          output_location: "dist"
+          api_location: ""
           skip_app_build: true
 
-          # The folder produced by `npm run build` (vite outputs here by default)
-          output_location: "dist"
-
-          # No Azure Functions API (backend is a separate App Service)
-          api_location: ""
-
-      # 6 — Print the deployment URL (useful for PR previews)
+      # STEP 6 — Print the live URL
       - name: Print deployment URL
         if: success()
-        run: |
-          echo "✅ Deployed to: ${{ steps.deploy.outputs.static_web_app_url }}"
+        run: echo "✅ Deployed → ${{ steps.deploy.outputs.static_web_app_url }}"
+
 
   # ── CLOSE PR STAGING ENVIRONMENT ───────────────────────────────────────────
   close_pull_request:
-    name: Close Pull Request Staging Environment
-    # Only runs when a PR targeting main is closed (merged or dismissed)
+    name: Close PR Staging Environment
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
+      id-token: write
 
     steps:
-      - name: Remove PR staging environment
+      - name: Close staging environment
         uses: Azure/static-web-apps-deploy@v1
         with:
-          # Same secret — required to tear down the staging slot
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "close"
-          # app_location, output_location and api_location are required by the
-          # action schema even for action: "close" — values are ignored at runtime
-          # but the linter / action input validator demands them to be present.
           app_location: "/"
           output_location: "dist"
           api_location: ""

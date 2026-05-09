@@ -32,7 +32,11 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_user');
-      window.location.href = '/login';
+      
+      // BREAK THE LOOP: Only redirect if they are NOT already on the login page!
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(err);
   }

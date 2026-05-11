@@ -189,9 +189,13 @@ export const Dashboard: React.FC = () => {
               </div>
               <span style={{
                 fontSize:10, padding:'2px 7px', borderRadius:4, flexShrink:0,
-                background: CATEGORY_COLORS[item.category as DocumentCategory].bg,
-                color: CATEGORY_COLORS[item.category as DocumentCategory].text,
-              }}>{item.category}</span>
+                // FIX: Added '?.bg' and a fallback default color
+                background: CATEGORY_COLORS[item.category as DocumentCategory]?.bg || 'rgba(255,255,255,0.1)',
+                // FIX: Added '?.text' and a fallback default text color
+                color: CATEGORY_COLORS[item.category as DocumentCategory]?.text || 'rgba(255,255,255,0.7)',
+              }}>
+                {item.category || 'Unknown'}
+              </span>
             </div>
           ))}
         </motion.div>

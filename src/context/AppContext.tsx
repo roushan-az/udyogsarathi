@@ -1,7 +1,8 @@
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Document, FilterOptions, PaginationState, DashboardStats } from '../types';
-import { documentService } from '../services/api';
+// Add authService to your import here:
+import { documentService, authService } from '../services/api'; 
 import { MOCK_DOCUMENTS, MOCK_STATS } from '../services/mockData';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
@@ -93,13 +94,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 // ── Bootstrap: load data once on mount ───────────────────────────────────
 
-  useEffect(() => {
+useEffect(() => {
     if (USE_MOCK) return;
     
-    // BREAK THE LOOP: Robust check for trailing slashes or hash routing
-    const isLoginPage = window.location.pathname.includes('/login') || window.location.hash.includes('/login');
-    
-    if (isLoginPage) {
+    // BULLETPROOF FIX: Do not fetch if the user does not have a token.
+    // This completely ignores Azure URL quirks.
+    if (!authService.isAuthenticated()) {
       return; 
     }
 

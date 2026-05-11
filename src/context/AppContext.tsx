@@ -91,11 +91,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // ── Bootstrap: load data once on mount ───────────────────────────────────
 
-useEffect(() => {
+// ── Bootstrap: load data once on mount ───────────────────────────────────
+
+  useEffect(() => {
     if (USE_MOCK) return;
     
-    // BREAK THE LOOP: Do not fetch dashboard data if we are on the login page!
-    if (window.location.pathname === '/login') {
+    // BREAK THE LOOP: Robust check for trailing slashes or hash routing
+    const isLoginPage = window.location.pathname.includes('/login') || window.location.hash.includes('/login');
+    
+    if (isLoginPage) {
       return; 
     }
 

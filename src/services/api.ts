@@ -26,6 +26,7 @@ api.interceptors.request.use((config) => {
 });
 
 // Global 401 handler — clear token and redirect to login
+// Global 401 handler — clear token and redirect to login
 api.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -33,8 +34,10 @@ api.interceptors.response.use(
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_user');
       
-      // BREAK THE LOOP: Only redirect if they are NOT already on the login page!
-      if (window.location.pathname !== '/login') {
+      // BREAK THE LOOP: Robust check for trailing slashes or hash routing
+      const isLoginPage = window.location.pathname.includes('/login') || window.location.hash.includes('/login');
+      
+      if (!isLoginPage) {
         window.location.href = '/login';
       }
     }

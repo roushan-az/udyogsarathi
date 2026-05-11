@@ -31,13 +31,13 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
+      // 1. Clear the invalid or expired token
+      authService.logout();
       
-      // BREAK THE LOOP: Robust check for trailing slashes or hash routing
-      const isLoginPage = window.location.pathname.includes('/login') || window.location.hash.includes('/login');
-      
-      if (!isLoginPage) {
+      // 2. Redirect to login. 
+      // We no longer need to worry about the loop because AppContext
+      // will see the token is gone and halt all initial data fetches.
+      if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
     }

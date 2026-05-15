@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Document, FilterOptions, PaginationState, DashboardStats } from '../types';
 // Add authService to your import here:
-import { documentService, authService } from '../services/api'; 
+import { documentService } from '../services/api'; 
 import { MOCK_DOCUMENTS, MOCK_STATS } from '../services/mockData';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';

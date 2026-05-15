@@ -99,9 +99,9 @@ useEffect(() => {
     
     // BULLETPROOF FIX: Do not fetch if the user does not have a token.
     // This completely ignores Azure URL quirks.
-    if (!authService.isAuthenticated()) {
-      return; 
-    }
+    //if (!authService.isAuthenticated()) {
+   //   return; 
+  //  }
 
     refreshDocuments();
     refreshStats();

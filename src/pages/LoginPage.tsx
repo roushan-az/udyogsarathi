@@ -78,8 +78,8 @@ export const LoginPage: React.FC = () => {
     // Sets a dev token that the FastAPI backend (DEBUG=True) accepts as 'dev-user'
     localStorage.setItem('auth_token', 'dev')
     setCurrentUser({ name: 'Dev Admin', email: 'dev@udyogsarathi.local' })
-    refreshDocuments()
-    refreshStats()
+    //refreshDocuments()
+    //refreshStats()
     toast.success('Dev mode — bypassing auth')
     navigate(from, { replace: true })
   }

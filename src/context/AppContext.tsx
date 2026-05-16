@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Document, FilterOptions, PaginationState, DashboardStats } from '../types';
 // Add authService to your import here:
-import { documentService } from '../services/api'; 
+import { documentService, authService } from '../services/api'; 
 import { MOCK_DOCUMENTS, MOCK_STATS } from '../services/mockData';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
@@ -99,9 +99,9 @@ useEffect(() => {
     
     // BULLETPROOF FIX: Do not fetch if the user does not have a token.
     // This completely ignores Azure URL quirks.
-    //if (!authService.isAuthenticated()) {
-   //   return; 
-  //  }
+    if (!authService.isAuthenticated()) {
+      return; 
+    }
 
     refreshDocuments();
     refreshStats();

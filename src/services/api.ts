@@ -65,11 +65,32 @@ export interface UserOut {
 }
 
 export const authService = {
-  async login(payload: LoginPayload): Promise<TokenResponse> {
-    const res = await api.post<TokenResponse>('/auth/login', payload);
-    localStorage.setItem('auth_token', res.data.accessToken);
-    return res.data;
-  },
+// src/services/api.ts
+
+// src/services/api.ts
+// src/services/api.ts
+
+async login(payload: LoginPayload): Promise<TokenResponse> {
+  // We use 'any' here temporarily to catch the raw response
+  const res = await api.post<any>('/auth/login', payload);
+  
+  // SUPPORT BOTH: check for camelCase AND snake_case
+  const token = res.data.accessToken || res.data.access_token;
+  
+  if (!token) {
+    console.error("Payload received:", res.data);
+    throw new Error("Login succeeded but no token was found in the response.");
+  }
+
+  localStorage.setItem('auth_token', token);
+  
+  // Also save user info if it's in the response
+  if (res.data.user) {
+    localStorage.setItem('auth_user', JSON.stringify(res.data.user));
+  }
+
+  return res.data;
+},
 
   async register(payload: RegisterPayload): Promise<UserOut> {
     const res = await api.post<UserOut>('/auth/register', payload);

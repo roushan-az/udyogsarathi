@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Building2, Mail, Lock, User, Eye, EyeOff, Loader2, AlertTriangle, CheckCircle } from 'lucide-react'
 import { authService } from '../services/api'
 import toast from 'react-hot-toast'
+import { useApp } from '../context/AppContext'
 
 interface FieldErrors {
   fullName?: string
@@ -42,6 +43,8 @@ export const RegisterPage: React.FC = () => {
   const [error,           setError]           = useState<string | null>(null)
   const [fieldErrors,     setFieldErrors]     = useState<FieldErrors>({})
   const [success,         setSuccess]         = useState(false)
+
+  const { setCurrentUser, refreshDocuments, refreshStats } = useApp();
 
   const strength = getPasswordStrength(password)
 
@@ -85,6 +88,11 @@ export const RegisterPage: React.FC = () => {
       // Auto-login after register
       await authService.login({ email: email.trim().toLowerCase(), password })
       setTimeout(() => navigate('/', { replace: true }), 800)
+      const user = await authService.me();
+      setCurrentUser({ name: user.fullName, email: user.email });
+      refreshDocuments();
+      refreshStats();
+      navigate('/', { replace: true });
 
     } catch (err: unknown) {
       const msg =

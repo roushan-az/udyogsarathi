@@ -28,11 +28,13 @@ api.interceptors.request.use((config) => {
 // Global 401 handler — clear token and redirect to login
 // Global 401 handler — clear token and redirect to login
 api.interceptors.response.use(
-  (res) => res,
+  (res) => res, 
   (err) => {
     if (err.response?.status === 401) {
       // 1. Clear the invalid or expired token
       authService.logout();
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
       
       // 2. Redirect to login. 
       // We no longer need to worry about the loop because AppContext
@@ -213,4 +215,33 @@ export const healthService = {
     const res = await api.get<HealthStatus>('/health');
     return res.data;
   },
+};
+
+// src/services/api.ts
+
+// Add these interfaces to match app/schemas/analytics.py
+export interface AnalyticsKPI {
+  totalDocuments: number;
+  totalStorage: number;
+  documentsThisWeek: number;
+  documentsLastWeek: number;
+  weekOverWeekPct: number;
+  avgFileSizeBytes: number;
+  totalPdfConversions: number;
+  successRate: number;
+}
+
+export interface AnalyticsResponse {
+  kpi: AnalyticsKPI;
+  weeklyTrend: any[];
+  monthlyStorage: any[];
+  categoryRadar: any[];
+  topUploaders: any[];
+}
+
+export const analyticsService = {
+  async getAnalytics(): Promise<AnalyticsResponse> {
+    const res = await api.get<AnalyticsResponse>('/analytics');
+    return res.data;
+  }
 };

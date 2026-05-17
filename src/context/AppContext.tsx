@@ -2,8 +2,10 @@ import type { ReactNode } from 'react';
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Document, FilterOptions, PaginationState, DashboardStats } from '../types';
 // Add authService to your import here:
-import { documentService, authService } from '../services/api'; 
+import { documentService, authService, analyticsService } from '../services/api'; 
 import { MOCK_DOCUMENTS, MOCK_STATS } from '../services/mockData';
+
+import type { AnalyticsResponse } from '../services/api';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
@@ -27,6 +29,10 @@ interface AppContextValue {
   removeDocument:     (id: string) => void;
   refreshDocuments:   (filters?: FilterOptions, pagination?: Partial<PaginationState>) => Promise<void>;
   refreshStats:       () => Promise<void>;
+
+  analyticsData: AnalyticsResponse | null;
+  analyticsLoading: boolean;
+  refreshAnalytics: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -43,6 +49,29 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser,      setCurrentUser]      = useState<{ name: string; email: string } | null>(null);
   const [filters,          setFilters]          = useState<FilterOptions>({ category: 'All', status: 'All' });
   const [pagination,       setPaginationState]  = useState<PaginationState>({ page: 1, pageSize: 10, total: 0 });
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsResponse | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(!USE_MOCK);
+
+  const refreshAnalytics = useCallback(async () => {
+    if (USE_MOCK) return;
+    setAnalyticsLoading(true);
+    try {
+      const data = await analyticsService.getAnalytics();
+      setAnalyticsData(data);
+    } catch (err) {
+      console.error('[AppContext] refreshAnalytics:', err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, []);
+
+  // Update Bootstrap to include analytics
+  useEffect(() => {
+    if (USE_MOCK || !authService.isAuthenticated()) return;
+    refreshDocuments();
+    refreshStats();
+    refreshAnalytics(); // Fetch real analytics data on mount
+  }, [refreshAnalytics]);
 
   const setPagination = useCallback((partial: Partial<PaginationState>) => {
     setPaginationState(prev => ({ ...prev, ...partial }));
@@ -148,6 +177,7 @@ useEffect(() => {
       sidebarCollapsed, currentUser,
       setFilters, setPagination, setSidebarCollapsed, setCurrentUser,
       addDocument, removeDocument, refreshDocuments, refreshStats,
+      analyticsData, analyticsLoading, refreshAnalytics,
     }}>
       {children}
     </AppContext.Provider>

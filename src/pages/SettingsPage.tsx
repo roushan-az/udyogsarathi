@@ -1,3 +1,4 @@
+// src/pages/SettingsPage.tsx
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
@@ -52,12 +53,12 @@ const ConnPill: React.FC<{ ok: boolean | null; label: string }> = ({ ok, label }
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export const SettingsPage: React.FC = () => {
-  // Azure config (read from env, editable for display — actual values come from .env)
-  const [blobAccount,    setBlobAccount]    = useState(import.meta.env.VITE_AZURE_STORAGE_ACCOUNT || 'udyogsarathi')
-  const [blobContainer,  setBlobContainer]  = useState(import.meta.env.VITE_AZURE_CONTAINER      || 'documents')
-  const [pgHost,         setPgHost]         = useState(import.meta.env.VITE_PG_HOST              || 'udyog-db.postgres.database.azure.com')
-  const [pgDb,           setPgDb]           = useState(import.meta.env.VITE_PG_DB                || 'udyog_sarathi')
-  const [apiUrl,         setApiUrl]         = useState(import.meta.env.VITE_API_URL              || 'http://localhost:8000/api')
+  // Config (read from env, editable for display — actual values come from .env)
+  const [storageAccount, setStorageAccount] = useState(import.meta.env.VITE_STORAGE_ACCOUNT || 'udyogsarathi')
+  const [storageBucket,  setStorageBucket]  = useState(import.meta.env.VITE_STORAGE_BUCKET  || 'documents')
+  const [pgHost,         setPgHost]         = useState(import.meta.env.VITE_PG_HOST         || 'aws-1-ap-southeast-1.pooler.supabase.com')
+  const [pgDb,           setPgDb]           = useState(import.meta.env.VITE_PG_DB           || 'postgres')
+  const [apiUrl,         setApiUrl]         = useState(import.meta.env.VITE_API_URL         || 'http://localhost:8000/api')
 
   const [notifyUpload, setNotifyUpload] = useState(true)
   const [notifyFail,   setNotifyFail]   = useState(true)
@@ -85,7 +86,6 @@ export const SettingsPage: React.FC = () => {
   const handleSave = async () => {
     setSaving(true)
     try {
-      // Settings like notification prefs are stored locally (no backend settings endpoint yet)
       localStorage.setItem('us_notify_upload', String(notifyUpload))
       localStorage.setItem('us_notify_fail',   String(notifyFail))
       localStorage.setItem('us_auto_retry',    String(autoRetry))
@@ -103,7 +103,7 @@ export const SettingsPage: React.FC = () => {
   }, [])
 
   return (
-    <Layout title="Settings" subtitle="Azure services, notifications and app configuration">
+    <Layout title="Settings" subtitle="Cloud services, notifications and app configuration">
       <div style={{ maxWidth: 720 }}>
 
         {/* ── Service health ────────────────────────────────────────────────── */}
@@ -113,7 +113,7 @@ export const SettingsPage: React.FC = () => {
             <div style={{ fontSize: 13, fontWeight: 600, color: '#f0f4ff', marginBottom: 6 }}>Service Health</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <ConnPill ok={health ? health.database : null} label="PostgreSQL" />
-              <ConnPill ok={health ? health.storage  : null} label="Azure Blob" />
+              <ConnPill ok={health ? health.storage  : null} label="Cloud Storage" />
               <ConnPill ok={health ? health.status === 'healthy' : null} label={health ? `v${health.version}` : 'API'} />
             </div>
           </div>
@@ -124,30 +124,30 @@ export const SettingsPage: React.FC = () => {
           </button>
         </motion.div>
 
-        {/* ── Azure Blob ────────────────────────────────────────────────────── */}
-        <Section title="Azure Blob Storage" icon={<Cloud size={16} />} delay={0.06}>
+        {/* ── Cloud Storage ─────────────────────────────────────────────────── */}
+        <Section title="Cloud Storage" icon={<Cloud size={16} />} delay={0.06}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-            <Field label="Storage Account" value={blobAccount} onChange={setBlobAccount} />
-            <Field label="Container"       value={blobContainer} onChange={setBlobContainer} />
+            <Field label="Storage Account/ID" value={storageAccount} onChange={setStorageAccount} />
+            <Field label="Bucket/Container"   value={storageBucket}  onChange={setStorageBucket} />
           </div>
-          <Field label="Endpoint (computed)" value={`https://${blobAccount}.blob.core.windows.net/${blobContainer}`} readOnly mono />
+          <Field label="Endpoint (computed)" value={`https://${storageAccount}.storage.cloud/${storageBucket}`} readOnly mono />
           <div style={{ padding: '10px 14px', borderRadius: 9, background: health?.storage ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.07)', border: `1px solid ${health?.storage ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'}`, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: health?.storage ? '#4ade80' : '#f87171' }}>
             {health?.storage ? <CheckCircle size={14} /> : <XCircle size={14} />}
-            {health?.storage ? 'Connected — Azure Blob Storage reachable' : 'Cannot reach Azure Blob Storage — check credentials'}
+            {health?.storage ? 'Connected — Cloud Storage reachable' : 'Cannot reach Cloud Storage — check credentials'}
           </div>
         </Section>
 
         {/* ── PostgreSQL ────────────────────────────────────────────────────── */}
-        <Section title="PostgreSQL — Flexible Server" icon={<Database size={16} />} delay={0.12}>
+        <Section title="PostgreSQL — Supabase Pooler" icon={<Database size={16} />} delay={0.12}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
             <Field label="Host"     value={pgHost} onChange={setPgHost} mono />
             <Field label="Database" value={pgDb}   onChange={setPgDb} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Port"     value="5432"    readOnly mono />
-            <Field label="SSL Mode" value="require" readOnly />
+            <Field label="Port"      value="5432"    readOnly mono />
+            <Field label="Pool Mode" value="Session" readOnly />
           </div>
-          <Field label="SQLAlchemy async URL" value={`postgresql+asyncpg://admin@${pgHost}/${pgDb}`} readOnly mono />
+          <Field label="SQLAlchemy async URL" value={`postgresql+asyncpg://postgres.yybhcpewgltzanlfpkvt@${pgHost}:5432/${pgDb}`} readOnly mono />
           <div style={{ padding: '10px 14px', borderRadius: 9, background: health?.database ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.07)', border: `1px solid ${health?.database ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'}`, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: health?.database ? '#4ade80' : '#f87171' }}>
             {health?.database ? <CheckCircle size={14} /> : <XCircle size={14} />}
             {health?.database ? 'Connected — PostgreSQL responding' : 'Cannot reach PostgreSQL — verify DATABASE_URL'}
@@ -155,29 +155,29 @@ export const SettingsPage: React.FC = () => {
         </Section>
 
         {/* ── FastAPI ───────────────────────────────────────────────────────── */}
-        <Section title="FastAPI Backend — Azure App Service" icon={<Server size={16} />} delay={0.18}>
+        <Section title="FastAPI Backend" icon={<Server size={16} />} delay={0.18}>
           <Field label="API Base URL" value={apiUrl} onChange={setApiUrl} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Tier"    value="F1 (Free)"   readOnly />
-            <Field label="Runtime" value="Python 3.12" readOnly />
+            <Field label="Environment" value="Development" readOnly />
+            <Field label="Runtime"     value="Python 3.12" readOnly />
           </div>
           <div style={{ padding: '10px 14px', borderRadius: 9, background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.15)', fontSize: 12.5, color: '#93c5fd', lineHeight: 1.6 }}>
-            <strong>Fail-safe active:</strong> If PostgreSQL INSERT fails after Blob upload, the PDF is deleted from Azure Blob automatically — no orphaned files.
+            <strong>Fail-safe active:</strong> If PostgreSQL INSERT fails after storage upload, the document is deleted from Cloud Storage automatically — no orphaned files.
           </div>
         </Section>
 
         {/* ── Security ─────────────────────────────────────────────────────── */}
         <Section title="Security" icon={<Shield size={16} />} delay={0.24}>
-          <Toggle label="JWT Bearer authentication" sub="Validated on every FastAPI endpoint" checked={true} onChange={() => toast('JWT auth is always enabled')} />
-          <Toggle label="Azure Blob SSE at rest"    sub="Microsoft-managed encryption keys"  checked={true} onChange={() => toast('Encryption is always on')} />
-          <Toggle label="CORS whitelist"            sub="Only React Static Web App origin"   checked={true} onChange={() => {}} />
+          <Toggle label="JWT Bearer authentication"   sub="Validated on every FastAPI endpoint" checked={true} onChange={() => toast('JWT auth is always enabled')} />
+          <Toggle label="Storage SSE at rest"         sub="Provider-managed encryption keys"    checked={true} onChange={() => toast('Encryption is always on')} />
+          <Toggle label="CORS whitelist"              sub="Only React Static Web App origin"    checked={true} onChange={() => {}} />
           <Toggle label="Auto-rollback on DB failure" sub="Delete blob if PostgreSQL transaction fails" checked={autoRetry} onChange={setAutoRetry} />
         </Section>
 
         {/* ── Notifications ─────────────────────────────────────────────────── */}
         <Section title="Notifications" icon={<Bell size={16} />} delay={0.3}>
           <Toggle label="Notify on successful upload" sub="Toast notification on every successful upload" checked={notifyUpload} onChange={setNotifyUpload} />
-          <Toggle label="Notify on upload failure"    sub="Error details + rollback confirmation"          checked={notifyFail}   onChange={setNotifyFail} />
+          <Toggle label="Notify on upload failure"    sub="Error details + rollback confirmation"         checked={notifyFail}   onChange={setNotifyFail} />
         </Section>
 
         {/* ── Appearance ───────────────────────────────────────────────────── */}

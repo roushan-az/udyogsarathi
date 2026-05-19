@@ -1,5 +1,6 @@
+// src/pages/Dashboard.tsx
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -35,14 +36,32 @@ const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: 
   )
 }
 
-const barData = [
-  { month:'Oct', docs:31 }, { month:'Nov', docs:38 }, { month:'Dec', docs:29 },
-  { month:'Jan', docs:44 }, { month:'Feb', docs:51 }, { month:'Mar', docs:47 },
-]
-
 export const Dashboard: React.FC = () => {
   const { stats, documents } = useApp()
   const navigate = useNavigate()
+
+  // Calculate the actual upload trend for the last 7 days from live documents cache
+  const actualUploadTrend = useMemo(() => {
+    const last7Days = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date()
+      d.setDate(d.getDate() - (6 - i)) // Go back (6 - i) days
+      return {
+        fullDate: d.toDateString(),
+        name: d.toLocaleDateString('en-US', { weekday: 'short' }), // e.g., "Mon"
+        uploads: 0
+      }
+    })
+
+    documents.forEach(doc => {
+      const docDateString = new Date(doc.uploadedAt).toDateString()
+      const dayMatch = last7Days.find(d => d.fullDate === docDateString)
+      if (dayMatch) {
+        dayMatch.uploads += 1
+      }
+    })
+
+    return last7Days
+  }, [documents])
 
   if (!stats) return null
 
@@ -108,12 +127,12 @@ export const Dashboard: React.FC = () => {
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
             <div>
               <h3 style={{ fontSize:13.5, fontWeight:600, color:'#f0f4ff' }}>Upload Trend</h3>
-              <p style={{ fontSize:11, color:'rgba(255,255,255,0.35)' }}>Last 6 months</p>
+              <p style={{ fontSize:11, color:'rgba(255,255,255,0.35)' }}>Last 7 Days</p>
             </div>
             <Activity size={15} color="rgba(255,255,255,0.2)" />
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={barData} barSize={24}>
+            <BarChart data={actualUploadTrend} barSize={24}>
               <defs>
                 <linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#f97316" stopOpacity={0.9}/>
@@ -121,10 +140,10 @@ export const Dashboard: React.FC = () => {
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false}/>
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize:11, fill:'rgba(255,255,255,0.35)' }}/>
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize:11, fill:'rgba(255,255,255,0.35)' }}/>
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize:11, fill:'rgba(255,255,255,0.35)' }}/>
               <Tooltip content={<ChartTooltip />} cursor={false}/>
-              <Bar dataKey="docs" radius={[6,6,0,0]} fill="url(#bg1)"/>
+              <Bar dataKey="uploads" radius={[6,6,0,0]} fill="url(#bg1)"/>
             </BarChart>
           </ResponsiveContainer>
         </motion.div>
@@ -145,11 +164,11 @@ export const Dashboard: React.FC = () => {
           </ResponsiveContainer>
           <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:10 }}>
             {Object.entries(stats.categoryCounts).map(([cat, count], i) => {
-              const colors = CATEGORY_COLORS[cat as DocumentCategory]
-              const pct = Math.round((count / stats.totalDocuments) * 100)
+              const colors = CATEGORY_COLORS[cat as DocumentCategory] || { text: '#fff', bg: 'rgba(255,255,255,0.1)' }
+              const pct = stats.totalDocuments > 0 ? Math.round((count / stats.totalDocuments) * 100) : 0
               return (
                 <div key={cat} style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <div style={{ width:8, height:8, borderRadius:3, background:PIE_COLORS[i], flexShrink:0 }}/>
+                  <div style={{ width:8, height:8, borderRadius:3, background:PIE_COLORS[i % PIE_COLORS.length], flexShrink:0 }}/>
                   <span style={{ flex:1, fontSize:12, color:'rgba(255,255,255,0.55)' }}>{cat}</span>
                   <span style={{ fontSize:11, fontFamily:'var(--font-mono)', color:colors.text, fontWeight:600 }}>{count}</span>
                   <span style={{ fontSize:10, color:'rgba(255,255,255,0.25)', width:28, textAlign:'right' }}>{pct}%</span>
@@ -189,9 +208,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <span style={{
                 fontSize:10, padding:'2px 7px', borderRadius:4, flexShrink:0,
-                // FIX: Added '?.bg' and a fallback default color
                 background: CATEGORY_COLORS[item.category as DocumentCategory]?.bg || 'rgba(255,255,255,0.1)',
-                // FIX: Added '?.text' and a fallback default text color
                 color: CATEGORY_COLORS[item.category as DocumentCategory]?.text || 'rgba(255,255,255,0.7)',
               }}>
                 {item.category || 'Unknown'}
@@ -211,7 +228,7 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
           {documents.slice(0,5).map((doc, i) => {
-            const colors = CATEGORY_COLORS[doc.category]
+            const colors = CATEGORY_COLORS[doc.category] || { text: '#fff', bg: 'rgba(255,255,255,0.1)' }
             return (
               <div key={doc.id} style={{
                 display:'flex', gap:10, padding:'11px 20px', alignItems:'center',

@@ -52,18 +52,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsResponse | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(!USE_MOCK);
 
-  const refreshAnalytics = useCallback(async () => {
-    if (USE_MOCK) return;
-    setAnalyticsLoading(true);
-    try {
-      const data = await analyticsService.getAnalytics();
-      setAnalyticsData(data);
-    } catch (err) {
-      console.error('[AppContext] refreshAnalytics:', err);
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  }, []);
+// 1. Update the signature to accept a boolean
+const refreshAnalytics = useCallback(async (silent = false) => {
+  // 2. Only show loading screens if we aren't doing a silent background update
+  if (!silent) setAnalyticsLoading(true);
+  try {
+    const data = await analyticsService.getAnalytics();
+    setAnalyticsData(data);
+  } catch (err) {
+    console.error("Failed to fetch analytics:", err);
+  } finally {
+    if (!silent) setAnalyticsLoading(false);
+  }
+}, []);
 
   // Update Bootstrap to include analytics
   useEffect(() => {
@@ -138,9 +139,10 @@ useEffect(() => {
 
   // ── Optimistic local mutations ────────────────────────────────────────────
 
+  // AppContext.tsx
+
   const addDocument = useCallback((doc: Document) => {
     setDocuments(prev => [doc, ...prev]);
-    setPaginationState(prev => ({ ...prev, total: prev.total + 1 }));
     setStats(prev => prev ? {
       ...prev,
       totalDocuments: prev.totalDocuments + 1,
@@ -150,25 +152,20 @@ useEffect(() => {
         [doc.category]: (prev.categoryCounts[doc.category] ?? 0) + 1,
       },
     } : prev);
-  }, []);
+    
+    // NEW: Silently fetch fresh analytics in the background!
+    refreshAnalytics(true); 
+  }, [refreshAnalytics]); // make sure to add refreshAnalytics to the dependency array
 
   const removeDocument = useCallback((id: string) => {
     setDocuments(prev => {
-      const removed = prev.find(d => d.id === id);
-      if (removed) {
-        setStats(s => s ? {
-          ...s,
-          totalDocuments: s.totalDocuments - 1,
-          categoryCounts: {
-            ...s.categoryCounts,
-            [removed.category]: Math.max(0, (s.categoryCounts[removed.category] ?? 1) - 1),
-          },
-        } : s);
-        setPaginationState(p => ({ ...p, total: Math.max(0, p.total - 1) }));
-      }
+      // ... your existing remove logic ...
       return prev.filter(d => d.id !== id);
     });
-  }, []);
+    
+    // NEW: Silently fetch fresh analytics in the background!
+    refreshAnalytics(true);
+  }, [refreshAnalytics]);
 
   return (
     <AppContext.Provider value={{

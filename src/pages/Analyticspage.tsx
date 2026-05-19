@@ -32,9 +32,11 @@ export const AnalyticsPage: React.FC = () => {
   const { analyticsData, analyticsLoading, refreshAnalytics } = useApp();
 
   // 1. Fetch real-time data on mount if not already present
-  useEffect(() => {
-   refreshAnalytics();
-  }, [ refreshAnalytics]);
+useEffect(() => {
+    if (!analyticsData && !analyticsLoading) {
+      refreshAnalytics();
+    }
+  }, [analyticsData, analyticsLoading, refreshAnalytics]);
 
   // 2. Memoized KPI cards using live backend data
   const kpiCards = useMemo(() => {

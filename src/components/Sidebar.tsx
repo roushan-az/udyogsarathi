@@ -1,28 +1,30 @@
+// src/components/Sidebar.tsx
 
 import React from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Upload, FolderOpen, BarChart3, Settings,
-  ChevronLeft, ChevronRight, Building2, Zap, X,
+  ChevronLeft, ChevronRight, Building2, Database, X
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import type { DocumentCategory } from '../types'
 
 const NAV_ITEMS = [
   { to: '/',           icon: LayoutDashboard, label: 'Dashboard'      },
   { to: '/upload',     icon: Upload,          label: 'Upload Document' },
   { to: '/documents',  icon: FolderOpen,      label: 'Documents'      },
-  { to: '/analytics',  icon: BarChart3,        label: 'Analytics'      },
-  { to: '/settings',   icon: Settings,         label: 'Settings'       },
+  { to: '/analytics',  icon: BarChart3,       label: 'Analytics'      },
+  { to: '/settings',   icon: Settings,        label: 'Settings'       },
 ]
 
-const CATEGORY_QUICK = [
-  { label: 'Sales',     color: '#f97316', count: 89 },
-  { label: 'Purchase',  color: '#3b82f6', count: 62 },
-  { label: 'Inventory', color: '#22c55e', count: 34 },
-  { label: 'HR',        color: '#a855f7', count: 28 },
-  { label: 'Finance',   color: '#14b8a6', count: 21 },
-  { label: 'Legal',     color: '#ef4444', count: 14 },
+const CATEGORIES_BASE: { label: DocumentCategory; color: string }[] = [
+  { label: 'Sales',     color: '#f97316' },
+  { label: 'Purchase',  color: '#3b82f6' },
+  { label: 'Inventory', color: '#22c55e' },
+  { label: 'HR',        color: '#a855f7' },
+  { label: 'Finance',   color: '#14b8a6' },
+  { label: 'Legal',     color: '#ef4444' },
 ]
 
 interface SidebarProps {
@@ -31,12 +33,38 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
-  const { sidebarCollapsed, setSidebarCollapsed } = useApp()
+  const { sidebarCollapsed, setSidebarCollapsed, stats, filters, setFilters, refreshDocuments } = useApp()
   const location = useLocation()
+  const navigate = useNavigate()
 
-  // On mobile the sidebar is a drawer; on desktop it's fixed inline
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
   const showExpanded = isMobile ? true : !sidebarCollapsed
+
+  // 1. INSTANT NAVIGATION (startTransition removed!)
+  const handleCategoryClick = (e: React.MouseEvent, categoryLabel: DocumentCategory) => {
+    e.preventDefault()
+    
+    const newFilters = { ...filters, category: categoryLabel }
+    
+    setFilters(newFilters)
+    navigate(`/documents?category=${categoryLabel}`)
+    
+    // Call the cache! It will return 0ms hits.
+    refreshDocuments(newFilters, { page: 1 }, true)
+    
+    if (onMobileClose) onMobileClose()
+  }
+
+  // 2. INSTANT NAVIGATION (startTransition removed!)
+  const handleNavClick = (to: string) => {
+    if (to === '/documents') {
+      const resetFilters = { ...filters, category: 'All' as any }
+      
+      setFilters(resetFilters)
+      refreshDocuments(resetFilters, { page: 1 }, true)
+    }
+    if (onMobileClose) onMobileClose()
+  }
 
   const sidebarContent = (
     <div style={{
@@ -80,9 +108,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
             </motion.div>
           )}
         </AnimatePresence>
-        {/* Mobile close button */}
         {isMobile && (
-          <button onClick={onMobileClose} style={{ color: 'rgba(255,255,255,0.4)', marginLeft: 'auto' }}>
+          <button onClick={onMobileClose} style={{ color: 'rgba(255,255,255,0.4)', marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer' }}>
             <X size={18} />
           </button>
         )}
@@ -99,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
         {NAV_ITEMS.map(({ to, icon: Icon, label }) => {
           const isActive = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to)
           return (
-            <NavLink key={to} to={to} style={{ textDecoration: 'none', display: 'block' }} onClick={onMobileClose}>
+            <NavLink key={to} to={to} style={{ textDecoration: 'none', display: 'block' }} onClick={() => handleNavClick(to)}>
               <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.97 }} style={{
                 display: 'flex', alignItems: 'center',
                 gap: showExpanded ? 10 : 0,
@@ -139,45 +166,49 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
                 fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,0.22)',
                 letterSpacing: '0.14em', textTransform: 'uppercase', padding: '0 8px 8px',
               }}>Categories</div>
-              {CATEGORY_QUICK.map(({ label, color, count }) => (
-                <NavLink key={label} to={`/documents?category=${label}`} style={{ textDecoration: 'none', display: 'block' }} onClick={onMobileClose}>
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '7px 10px', borderRadius: 8, marginBottom: 1, cursor: 'pointer',
-                    transition: 'background 0.15s ease',
-                  }}
-                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
-                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0, boxShadow: `0 0 5px ${color}` }} />
-                    <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.55)', flex: 1 }}>{label}</span>
-                    <span style={{ fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4 }}>{count}</span>
-                  </div>
-                </NavLink>
-              ))}
+              {CATEGORIES_BASE.map(({ label, color }) => {
+                const liveCount = stats?.categoryCounts?.[label] || 0;
+                
+                return (
+                  <a key={label} href={`/documents?category=${label}`} style={{ textDecoration: 'none', display: 'block' }} onClick={(e) => handleCategoryClick(e, label)}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '7px 10px', borderRadius: 8, marginBottom: 1, cursor: 'pointer',
+                      transition: 'background 0.15s ease',
+                    }}
+                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0, boxShadow: `0 0 5px ${color}` }} />
+                      <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.55)', flex: 1 }}>{label}</span>
+                      <span style={{ fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4 }}>
+                        {liveCount}
+                      </span>
+                    </div>
+                  </a>
+                )
+              })}
             </motion.div>
           )}
         </AnimatePresence>
       </nav>
 
-      {/* Azure status */}
       <AnimatePresence>
         {showExpanded && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{ margin: '0 10px 10px', padding: '10px 12px', borderRadius: 10, background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.15)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <Zap size={12} color="#22c55e" />
-              <span style={{ fontSize: 11.5, color: '#22c55e', fontWeight: 600 }}>Azure Connected</span>
+              <Database size={12} color="#22c55e" />
+              <span style={{ fontSize: 11.5, color: '#22c55e', fontWeight: 600 }}>System Online</span>
             </div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 3 }}>Blob · PostgreSQL · App Service</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 3 }}>PostgreSQL · Cloud Storage</div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Collapse toggle — desktop only */}
       {!isMobile && (
         <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          height: 44, borderTop: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none',
+          height: 44, borderTop: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer',
           color: 'rgba(255,255,255,0.35)', transition: 'color 0.15s ease, background 0.15s ease', flexShrink: 0,
         }}
         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#f97316'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(249,115,22,0.06)'; }}

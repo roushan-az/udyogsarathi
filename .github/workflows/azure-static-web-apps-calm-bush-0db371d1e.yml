@@ -46,7 +46,7 @@ jobs:
           github_id_token: ${{ steps.idtoken.outputs.result }}
           ###### End of Repository/Build Configurations ######
         env:
-          VITE_API_URL: "https://udyog-sarathi-api-fzfqcwdzepavedd0.centralindia-01.azurewebsites.net/api"
+          VITE_API_URL: "https://undyogsarathiapi-gpfhc8f6bda8exef.centralindia-01.azurewebsites.net/api"
           VITE_USE_MOCK: "false"  
 
   close_pull_request_job:

@@ -63,7 +63,16 @@ export const Dashboard: React.FC = () => {
     return last7Days
   }, [documents])
 
-  if (!stats) return null
+  if (!stats) {
+    return (
+      <Layout title="Dashboard" subtitle="Udyog Sarathi">
+        <div style={{ padding: '60px 20px', textAlign: 'center', color: '#f0f4ff' }}>
+          <h3>Waiting for Server Connection...</h3>
+          <p style={{ color: 'rgba(255,255,255,0.5)' }}>If this takes longer than a few seconds, the API might be down or returning a 404.</p>
+        </div>
+      </Layout>
+    )
+  }
 
   const pieData = Object.entries(stats.categoryCounts).map(([cat, count]) => ({ name: cat, value: count }))
 

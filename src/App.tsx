@@ -13,7 +13,10 @@ import { DocumentsPage }from './pages/DocumentsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import './App.css'
 import { ProtectedRoute } from './components/ProtectedRoute'
-import { AnalyticsPage } from './pages/Analyticspage'
+import { AnalyticsPage } from './pages/AnalyticsPage'
+
+
+
 
 const toastStyle = {
   background:   '#1a2b4e',

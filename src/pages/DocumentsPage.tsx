@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Filter, Grid3X3, List, SortAsc, SortDesc, X, ChevronLeft, ChevronRight, FileText, RefreshCw } from 'lucide-react'
+import { Search, Filter, Grid3X3, List, SortAsc, SortDesc, X, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { DocumentCard } from '../components/DocumentCard'
 import { useApp } from '../context/AppContext'
@@ -187,7 +187,6 @@ export const DocumentsPage: React.FC = () => {
           <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>No documents found</div>
           <div style={{ fontSize: 13 }}>Try different filters or upload a new document</div>
         </motion.div>
- // ── Content ──
 ) : viewMode === 'grid' ? (
   <motion.div layout style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
     <AnimatePresence>{displayDocs.map(doc => <DocumentCard key={doc.id} document={doc} view="list" />)}</AnimatePresence>

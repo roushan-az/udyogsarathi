@@ -181,17 +181,11 @@ export const documentService = {
    * Backend returns { downloadUrl, expiresInMinutes }.
    * We open the SAS URL directly — no blob stream needed.
    */
-  async downloadDocument(id: string, fileName: string): Promise<void> {
+async downloadDocument(id: string, disposition: 'attachment' | 'inline' = 'attachment'): Promise<{ downloadUrl: string; expiresInMinutes: number }> {
     const res = await api.get<{ downloadUrl: string; expiresInMinutes: number }>(
-      `/documents/${id}/download`
+      `/documents/${id}/download?disposition=${disposition}`
     );
-    const link = document.createElement('a');
-    link.href = res.data.downloadUrl;
-    link.setAttribute('download', fileName);
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    return res.data;
   },
 
   /** GET /api/dashboard/stats */

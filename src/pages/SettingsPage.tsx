@@ -42,7 +42,6 @@ const Toggle: React.FC<{ label: string; sub?: string; checked: boolean; onChange
   </div>
 )
 
-// ── Connectivity pill ─────────────────────────────────────────────────────────
 const ConnPill: React.FC<{ ok: boolean | null; label: string }> = ({ ok, label }) => (
   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: ok === null ? 'rgba(255,255,255,0.06)' : ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: ok === null ? 'rgba(255,255,255,0.4)' : ok ? '#4ade80' : '#f87171', border: `1px solid ${ok === null ? 'rgba(255,255,255,0.08)' : ok ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
     {ok === null ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : ok ? <CheckCircle size={11} /> : <XCircle size={11} />}
@@ -50,12 +49,10 @@ const ConnPill: React.FC<{ ok: boolean | null; label: string }> = ({ ok, label }
   </span>
 )
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-
 export const SettingsPage: React.FC = () => {
-  // Config (read from env, editable for display — actual values come from .env)
-  const [storageAccount, setStorageAccount] = useState(import.meta.env.VITE_STORAGE_ACCOUNT || 'udyogsarathi')
-  const [storageBucket,  setStorageBucket]  = useState(import.meta.env.VITE_STORAGE_BUCKET  || 'documents')
+  // Corrected fallbacks to point directly to Cloudflare R2 configurations from your framework setup
+  const [storageAccount, setStorageAccount] = useState(import.meta.env.VITE_R2_ACCOUNT_ID || '74a3ad8b6d42ad00c97803ed2a068ebb')
+  const [storageBucket,  setStorageBucket]  = useState(import.meta.env.VITE_R2_BUCKET_NAME || 'udyog-sarathi-docs')
   const [pgHost,         setPgHost]         = useState(import.meta.env.VITE_PG_HOST         || 'aws-1-ap-southeast-1.pooler.supabase.com')
   const [pgDb,           setPgDb]           = useState(import.meta.env.VITE_PG_DB           || 'postgres')
   const [apiUrl,         setApiUrl]         = useState(import.meta.env.VITE_API_URL         || 'http://localhost:8000/api')
@@ -65,7 +62,6 @@ export const SettingsPage: React.FC = () => {
   const [autoRetry,    setAutoRetry]    = useState(false)
   const [saving,       setSaving]       = useState(false)
 
-  // Health check state
   const [health,         setHealth]         = useState<HealthStatus | null>(null)
   const [healthLoading,  setHealthLoading]  = useState(false)
 
@@ -89,7 +85,7 @@ export const SettingsPage: React.FC = () => {
       localStorage.setItem('us_notify_upload', String(notifyUpload))
       localStorage.setItem('us_notify_fail',   String(notifyFail))
       localStorage.setItem('us_auto_retry',    String(autoRetry))
-      await new Promise(r => setTimeout(r, 400)) // small UX delay
+      await new Promise(r => setTimeout(r, 400))
       toast.success('Settings saved locally')
     } finally {
       setSaving(false)
@@ -113,7 +109,7 @@ export const SettingsPage: React.FC = () => {
             <div style={{ fontSize: 13, fontWeight: 600, color: '#f0f4ff', marginBottom: 6 }}>Service Health</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <ConnPill ok={health ? health.database : null} label="PostgreSQL" />
-              <ConnPill ok={health ? health.storage  : null} label="Cloud Storage" />
+              <ConnPill ok={health ? health.storage  : null} label="Cloud Storage (R2)" />
               <ConnPill ok={health ? health.status === 'healthy' : null} label={health ? `v${health.version}` : 'API'} />
             </div>
           </div>
@@ -125,15 +121,16 @@ export const SettingsPage: React.FC = () => {
         </motion.div>
 
         {/* ── Cloud Storage ─────────────────────────────────────────────────── */}
-        <Section title="Cloud Storage" icon={<Cloud size={16} />} delay={0.06}>
+        <Section title="Cloud Storage (Cloudflare R2)" icon={<Cloud size={16} />} delay={0.06}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-            <Field label="Storage Account/ID" value={storageAccount} onChange={setStorageAccount} />
-            <Field label="Bucket/Container"   value={storageBucket}  onChange={setStorageBucket} />
+            <Field label="R2 Account ID" value={storageAccount} onChange={setStorageAccount} mono />
+            <Field label="R2 Bucket Name"   value={storageBucket}  onChange={setStorageBucket} />
           </div>
-          <Field label="Endpoint (computed)" value={`https://${storageAccount}.storage.cloud/${storageBucket}`} readOnly mono />
+          {/* Updated template computation to point specifically to your R2 cluster endpoint layout */}
+          <Field label="Endpoint (computed)" value={`https://${storageAccount}.r2.cloudflarestorage.com/${storageBucket}`} readOnly mono />
           <div style={{ padding: '10px 14px', borderRadius: 9, background: health?.storage ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.07)', border: `1px solid ${health?.storage ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'}`, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: health?.storage ? '#4ade80' : '#f87171' }}>
             {health?.storage ? <CheckCircle size={14} /> : <XCircle size={14} />}
-            {health?.storage ? 'Connected — Cloud Storage reachable' : 'Cannot reach Cloud Storage — check credentials'}
+            {health?.storage ? 'Connected — Cloud Storage reachable' : 'Cannot reach Cloud Storage — check R2 setup'}
           </div>
         </Section>
 

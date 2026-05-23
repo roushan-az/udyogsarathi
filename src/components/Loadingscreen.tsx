@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Building2, Wifi, WifiOff, RefreshCw } from 'lucide-react'
+import { Building2, WifiOff, RefreshCw } from 'lucide-react'
 
 interface Props {
   error?: string | null

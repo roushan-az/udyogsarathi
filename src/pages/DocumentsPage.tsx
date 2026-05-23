@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Filter, Grid3X3, List, SortAsc, SortDesc, X, ChevronLeft, ChevronRight, FileText, RefreshCw } from 'lucide-react'
+import { Search, Filter, Grid3X3, List, SortAsc, SortDesc, X, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { Layout } from '../components/Layout'
 import { DocumentCard } from '../components/DocumentCard'
 import { useApp } from '../context/AppContext'
-import { CATEGORIES, CATEGORY_COLORS, formatFileSize, formatRelative } from '../utils'
+import { CATEGORIES, CATEGORY_COLORS } from '../utils'
 import type { DocumentCategory } from '../types'
 
 type SortKey  = 'uploadedAt' | 'fileName' | 'fileSize' | 'category'
@@ -16,7 +16,7 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 export const DocumentsPage: React.FC = () => {
   const { documents, isLoading, error, pagination, refreshDocuments, setFilters, setPagination } = useApp()
 
-  const [viewMode,        setViewMode]        = useState<ViewMode>('grid')
+  const [viewMode,        setViewMode]        = useState<ViewMode>('list')
   const [search,          setSearch]          = useState('')
   const [categoryFilter,  setCategoryFilter]  = useState<DocumentCategory | 'All'>('All')
   const [statusFilter,    setStatusFilter]    = useState('All')
@@ -187,32 +187,19 @@ export const DocumentsPage: React.FC = () => {
           <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>No documents found</div>
           <div style={{ fontSize: 13 }}>Try different filters or upload a new document</div>
         </motion.div>
-      ) : viewMode === 'grid' ? (
-        <motion.div layout style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
-          <AnimatePresence>{displayDocs.map(doc => <DocumentCard key={doc.id} document={doc} view="grid" />)}</AnimatePresence>
-        </motion.div>
-      ) : (
-        <div style={{ background: 'rgba(21,34,64,0.85)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden' }}>
-          <AnimatePresence>
-            {displayDocs.map((doc) => {
-              const c = CATEGORY_COLORS[doc.category]
-              return (
-                <motion.div key={doc.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  style={{ display: 'flex', gap: 12, padding: '12px 18px', alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><FileText size={14} color={c.text} /></div>
-                  <div style={{ flex: '1 1 140px', minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#f0f4ff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.originalName}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 1 }}>{formatFileSize(doc.fileSize)} · {formatRelative(doc.uploadedAt)}</div>
-                  </div>
-                  <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 6, background: c.bg, color: c.text, fontWeight: 600, flexShrink: 0 }}>{doc.category}</span>
-                  <span className={`status-badge status-${doc.status}`} style={{ flexShrink: 0 }}>{doc.status}</span>
-                  <DocumentCard document={doc} view="list" />
-                </motion.div>
-              )
-            })}
-          </AnimatePresence>
-        </div>
-      )}
+) : viewMode === 'grid' ? (
+  <motion.div layout style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
+    <AnimatePresence>{displayDocs.map(doc => <DocumentCard key={doc.id} document={doc} view="list" />)}</AnimatePresence>
+  </motion.div>
+) : (
+  <div style={{ background: 'rgba(21,34,64,0.85)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden' }}>
+    <AnimatePresence>
+      {displayDocs.map(doc => (
+        <DocumentCard key={doc.id} document={doc} view="list" />
+      ))}
+    </AnimatePresence>
+  </div>
+)}
 
       {/* ── Pagination ── */}
       {totalPages > 1 && (

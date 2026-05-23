@@ -30,6 +30,48 @@ const getPasswordStrength = (p: string): { score: number; label: string; color: 
   return                { score, label: 'Strong', color: '#22c55e' }
 }
 
+// ── Input field factory (Moved OUTSIDE to prevent re-mounting) ────────────
+const InputField = ({
+  label, value, onChange, type = 'text', placeholder, icon, error: fieldError,
+  rightIcon, id, autoComplete, setFieldErrors
+}: {
+  label: string; value: string; onChange: (v: string) => void
+  type?: string; placeholder: string; icon: React.ReactNode
+  error?: string; rightIcon?: React.ReactNode; id?: string; autoComplete?: string;
+  setFieldErrors: React.Dispatch<React.SetStateAction<FieldErrors>>;
+}) => (
+  <div style={{ marginBottom: 18 }}>
+    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      {label}
+    </label>
+    <div style={{ position: 'relative' }}>
+      <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: fieldError ? '#f87171' : 'rgba(255,255,255,0.3)' }}>
+        {icon}
+      </span>
+      <input id={id} type={type} value={value} autoComplete={autoComplete}
+        onChange={e => { onChange(e.target.value); setFieldErrors(p => ({ ...p })) }}
+        placeholder={placeholder}
+        style={{
+          width: '100%', height: 44,
+          background: 'rgba(255,255,255,0.05)',
+          border: `1px solid ${fieldError ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.1)'}`,
+          borderRadius: 10, padding: `0 ${rightIcon ? '42px' : '14px'} 0 38px`,
+          fontSize: 14, color: '#f0f4ff', outline: 'none', transition: 'border-color 0.15s ease',
+        }}
+        onFocus={e => { if (!fieldError) e.target.style.borderColor = 'rgba(249,115,22,0.5)' }}
+        onBlur={e  => { if (!fieldError) e.target.style.borderColor = 'rgba(255,255,255,0.1)' }}
+      />
+      {rightIcon && (
+        <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
+          {rightIcon}
+        </span>
+      )}
+    </div>
+    {fieldError && <p style={{ fontSize: 12, color: '#f87171', marginTop: 5 }}>{fieldError}</p>}
+  </div>
+)
+
+// ── Main Component ────────────────────────────────────────────────────────
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate()
 
@@ -106,46 +148,6 @@ export const RegisterPage: React.FC = () => {
     }
   }
 
-  // ── Input field factory ───────────────────────────────────────────────────
-  const InputField = ({
-    label, value, onChange, type = 'text', placeholder, icon, error: fieldError,
-    rightIcon, id, autoComplete,
-  }: {
-    label: string; value: string; onChange: (v: string) => void
-    type?: string; placeholder: string; icon: React.ReactNode
-    error?: string; rightIcon?: React.ReactNode; id?: string; autoComplete?: string
-  }) => (
-    <div style={{ marginBottom: 18 }}>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-        {label}
-      </label>
-      <div style={{ position: 'relative' }}>
-        <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: fieldError ? '#f87171' : 'rgba(255,255,255,0.3)' }}>
-          {icon}
-        </span>
-        <input id={id} type={type} value={value} autoComplete={autoComplete}
-          onChange={e => { onChange(e.target.value); setFieldErrors(p => ({ ...p })) }}
-          placeholder={placeholder}
-          style={{
-            width: '100%', height: 44,
-            background: 'rgba(255,255,255,0.05)',
-            border: `1px solid ${fieldError ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.1)'}`,
-            borderRadius: 10, padding: `0 ${rightIcon ? '42px' : '14px'} 0 38px`,
-            fontSize: 14, color: '#f0f4ff', outline: 'none', transition: 'border-color 0.15s ease',
-          }}
-          onFocus={e => { if (!fieldError) e.target.style.borderColor = 'rgba(249,115,22,0.5)' }}
-          onBlur={e  => { if (!fieldError) e.target.style.borderColor = 'rgba(255,255,255,0.1)' }}
-        />
-        {rightIcon && (
-          <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
-            {rightIcon}
-          </span>
-        )}
-      </div>
-      {fieldError && <p style={{ fontSize: 12, color: '#f87171', marginTop: 5 }}>{fieldError}</p>}
-    </div>
-  )
-
   return (
     <div style={{
       minHeight: '100vh', background: 'var(--bg-void)',
@@ -220,13 +222,28 @@ export const RegisterPage: React.FC = () => {
 
           {!success && (
             <form onSubmit={handleSubmit} noValidate>
-              <InputField label="Full Name" value={fullName} onChange={setFullName}
-                placeholder="Rahul Sharma" icon={<User size={15} />}
-                error={fieldErrors.fullName} autoComplete="name" />
+              <InputField 
+                label="Full Name" 
+                value={fullName} 
+                onChange={setFullName}
+                placeholder="Rahul Sharma" 
+                icon={<User size={15} />}
+                error={fieldErrors.fullName} 
+                autoComplete="name" 
+                setFieldErrors={setFieldErrors}
+              />
 
-              <InputField label="Email Address" value={email} onChange={setEmail}
-                type="email" placeholder="admin@company.com" icon={<Mail size={15} />}
-                error={fieldErrors.email} autoComplete="email" />
+              <InputField 
+                label="Email Address" 
+                value={email} 
+                onChange={setEmail}
+                type="email" 
+                placeholder="admin@company.com" 
+                icon={<Mail size={15} />}
+                error={fieldErrors.email} 
+                autoComplete="email" 
+                setFieldErrors={setFieldErrors}
+              />
 
               {/* Password with strength meter */}
               <div style={{ marginBottom: 18 }}>

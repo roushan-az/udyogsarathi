@@ -15,6 +15,8 @@ import { SettingsPage }    from './pages/SettingsPage'
 import { authService }     from './services/api'
 import './App.css'
 import { LoadingScreen } from './components/Loadingscreen'
+import { useEffect, useRef } from 'react'
+
 
 const toastBase = {
   background: '#1a2b4e', color: '#f0f4ff',
@@ -28,27 +30,32 @@ function AppShell() {
   const { isLoading, statsLoading, error, refreshDocuments, refreshStats } = useApp()
   const isAuthenticated = authService.isAuthenticated()
 
-  // Show branded loading screen while FIRST data fetch is in flight
-  // (only when user is authenticated — unauthenticated users go to /login)
-  const firstLoad = isAuthenticated && (isLoading || statsLoading) && error === null
+  const hasBootstrapped = useRef(false)
+  const stillBooting = isAuthenticated && (isLoading || statsLoading)
+  
+  useEffect(() => {
+    if (!stillBooting && !hasBootstrapped.current) {
+      hasBootstrapped.current = true   // ← flips permanently after first load
+    }
+  }, [stillBooting])
 
-  // Show error screen if API is completely unreachable (CORS / DNS / down)
-  // But only when authenticated — unauthenticated users see /login instead
-  const apiUnreachable = isAuthenticated && !!error && !isLoading
 
-  if (firstLoad) {
+ if (!hasBootstrapped.current && stillBooting && error === null) {
     return <LoadingScreen />
   }
 
-  if (apiUnreachable) {
+  if (!hasBootstrapped.current && isAuthenticated && !!error && !isLoading) {
     return (
       <LoadingScreen
         error={error}
-        onRetry={() => { refreshDocuments(); refreshStats() }}
+        onRetry={() => {
+          refreshDocuments()
+          refreshStats()
+        }}
       />
     )
   }
-
+ 
   return (
     <Routes>
       {/* ── Public ── */}

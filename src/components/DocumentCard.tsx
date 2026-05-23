@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FileText, Download, Trash2, ExternalLink, MoreVertical, Eye, Calendar, HardDrive } from 'lucide-react'
@@ -16,7 +15,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ document: doc, view 
   const [deleting, setDeleting] = useState(false)
   const colors = CATEGORY_COLORS[doc.category]
 
-  // ── DELETE — calls DELETE /api/documents/:id ──────────────────────────────
+  // ── DELETE ───────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     setDeleting(true)
     setMenuOpen(false)
@@ -34,31 +33,52 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ document: doc, view 
     }
   }
 
-  // ── DOWNLOAD — calls GET /api/documents/:id/download → SAS URL ──────────
-  const handleDownload = async () => {
-    setMenuOpen(false)
-    const tid = toast.loading('Generating download link…')
-    try {
-      await documentService.downloadDocument(doc.id, doc.fileName)
-      toast.dismiss(tid)
-      toast.success('Download started')
-    } catch {
-      toast.dismiss(tid)
-      toast.error('Download failed')
+ // ── DOWNLOAD ─────────────────────────────────────────────────────────────
+const handleDownload = async () => {
+  setMenuOpen(false);
+  try {
+    // Force 'attachment'
+    const data = await documentService.downloadDocument(doc.id, 'attachment');
+    if (data?.downloadUrl) {
+      window.location.href = data.downloadUrl;
     }
+  } catch (error) {
+    toast.error('Download failed');
   }
+};
 
-  // ── VIEW in Azure Blob ───────────────────────────────────────────────────
-  const handleView = () => {
-    setMenuOpen(false)
-    window.open(doc.blobUrl, '_blank', 'noopener,noreferrer')
+// ── VIEW ─────────────────────────────────────────────────────────────────
+const handleView = async () => {
+  setMenuOpen(false);
+  try {
+    // Force 'inline'
+    const data = await documentService.downloadDocument(doc.id, 'inline');
+    if (data?.downloadUrl) {
+      window.open(data.downloadUrl, '_blank', 'noopener,noreferrer');
+    }
+  } catch (error) {
+    toast.error('Could not open file');
   }
+};
 
-  // ── Copy blob URL ─────────────────────────────────────────────────────────
-  const handleCopyUrl = () => {
-    navigator.clipboard.writeText(doc.blobUrl)
-    toast.success('Blob URL copied to clipboard')
+  // ── COPY URL ─────────────────────────────────────────────────────────────
+  const handleCopyUrl = async () => {
     setMenuOpen(false)
+    const tid = toast.loading('Generating secure link...')
+    try {
+      // We use 'inline' for shared links so it opens in the browser for whoever clicks it
+      const data = await documentService.downloadDocument(doc.id, 'inline')
+
+      if (data?.downloadUrl) {
+        await navigator.clipboard.writeText(data.downloadUrl)
+        toast.success('Secure link copied to clipboard!', { id: tid })
+      } else {
+        throw new Error("No URL returned from API")
+      }
+    } catch (error) {
+      console.error("Copy failed:", error)
+      toast.error('Could not copy link', { id: tid })
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -78,9 +98,9 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ document: doc, view 
         <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 6, background: colors.bg, color: colors.text, fontWeight: 600, flexShrink: 0 }}>{doc.category}</span>
         <span className={`status-badge status-${doc.status}`} style={{ flexShrink: 0 }}>{doc.status}</span>
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-          <ActionBtn icon={<Eye size={13} />}      title="View"     onClick={handleView} />
-          <ActionBtn icon={<Download size={13} />}  title="Download" onClick={handleDownload} />
-          <ActionBtn icon={<Trash2 size={13} />}    title="Delete"   onClick={handleDelete} danger />
+          <ActionBtn icon={<Eye size={13} />}      title="View File" onClick={handleView} />
+          <ActionBtn icon={<Download size={13} />}  title="Download"  onClick={handleDownload} />
+          <ActionBtn icon={<Trash2 size={13} />}    title="Delete"    onClick={handleDelete} danger />
         </div>
       </motion.div>
     )
@@ -119,10 +139,10 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ document: doc, view 
                   <motion.div initial={{ opacity: 0, scale: 0.9, y: -5 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: -5 }} transition={{ duration: 0.12 }}
                     style={{ position: 'absolute', top: 32, right: 0, background: '#1a2b4e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: 4, zIndex: 20, minWidth: 165, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
                     {[
-                      { icon: <Eye size={13} />,          label: 'View in Azure',  fn: handleView,    danger: false },
-                      { icon: <Download size={13} />,      label: 'Download PDF',   fn: handleDownload, danger: false },
-                      { icon: <ExternalLink size={13} />,  label: 'Copy URL',       fn: handleCopyUrl, danger: false },
-                      { icon: <Trash2 size={13} />,        label: 'Delete',         fn: handleDelete,  danger: true  },
+                      { icon: <Eye size={13} />,          label: 'View File',        fn: handleView,    danger: false },
+                      { icon: <Download size={13} />,      label: 'Download File',    fn: handleDownload, danger: false },
+                      { icon: <ExternalLink size={13} />,  label: 'Copy Secure URL',  fn: handleCopyUrl, danger: false },
+                      { icon: <Trash2 size={13} />,        label: 'Delete',           fn: handleDelete,  danger: true  },
                     ].map((item, i) => (
                       <button key={i} onClick={item.fn}
                         style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '7px 10px', borderRadius: 7, fontSize: 12.5, color: item.danger ? '#f87171' : 'rgba(255,255,255,0.7)', background: 'transparent', cursor: 'pointer', transition: 'background 0.1s', textAlign: 'left' }}

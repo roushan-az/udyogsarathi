@@ -55,7 +55,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentUser,      setCurrentUser]      = useState<{ name: string; email: string; is_superuser?: boolean } | null>(null);
   const [filters,          setFiltersState]     = useState<FilterOptions>({ category: 'All', status: 'All' });
-  const [pagination,       setPaginationState]  = useState<PaginationState>({ page: 1, pageSize: 10, total: 0 });
+  const [pagination,       setPaginationState]  = useState<PaginationState>({ page: 1, pageSize: 10000, total: 0 });
 
   // ── Refs: avoid stale closures in callbacks ───────────────────────────────
   const filtersRef       = useRef(filters);
@@ -107,7 +107,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       f.status   ?? 'All',
       f.search   ?? '',
       p.page     ?? 1,
-      p.pageSize ?? 10,
+      p.pageSize ?? 10000,
     ].join('|');
 
     if (docCache.current[cacheKey]) {
@@ -186,7 +186,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setStatsLoading(false);
       return;
     }
-    refreshDocuments();
+    refreshDocuments({ category: 'All', status: 'All' }, { page: 1, pageSize: 10000 });
     refreshStats();
   }, []); 
 

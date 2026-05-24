@@ -31,12 +31,12 @@ export const DocumentsPage: React.FC = () => {
   const [sortKey,        setSortKey]        = useState<SortKey>('uploadedAt')
   const [sortAsc,        setSortAsc]        = useState(false)
   const [page,           setPage]           = useState(1)
-  const PAGE_SIZE = viewMode === 'grid' ? 9 : 10
+  const PAGE_SIZE = 10000
 
   // ── Initial fetch only ────────────────────────────────────────────────────
   useEffect(() => {
     if (!USE_MOCK && documents.length === 0) {
-      refreshDocuments({ category: 'All', status: 'All' }, { page: 1, pageSize: 1000 })
+      refreshDocuments({ category: 'All', status: 'All' }, { page: 1, pageSize: 10000 })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

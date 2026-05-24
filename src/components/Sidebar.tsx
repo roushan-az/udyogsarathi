@@ -5,7 +5,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Upload, FolderOpen, BarChart3, Settings,
-  ChevronLeft, ChevronRight, Building2, Database, X, Shield
+  ChevronLeft, ChevronRight, Building2, Database, X
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import type { DocumentCategory } from '../types'
@@ -41,15 +41,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
   const showExpanded = isMobile ? true : !sidebarCollapsed
 
   // Navigate to category - DocumentsPage will filter from cached documents
-  const handleCategoryClick = (e: React.MouseEvent, categoryLabel: DocumentCategory) => {
-    e.preventDefault()
-    
-    // Just update the filter state and navigate
-    // DocumentsPage will handle filtering from its cached documents
-    const newFilters = { ...filters, category: categoryLabel }
-    setFilters(newFilters)
-    navigate(`/documents?category=${categoryLabel}`)
-    
+  const handleCategoryClick = (_e: React.MouseEvent, categoryLabel: DocumentCategory) => {
+    setFilters({ ...filters, category: categoryLabel })
+    navigate(`/documents?category=${encodeURIComponent(categoryLabel)}`)
     if (onMobileClose) onMobileClose()
   }
 
@@ -155,8 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
           )
         })}
 
-        {/* Categories 
-        
+        {/* Categories */}
         <AnimatePresence>
           {showExpanded && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ marginTop: 22 }}>
@@ -165,10 +158,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
                 letterSpacing: '0.14em', textTransform: 'uppercase', padding: '0 8px 8px',
               }}>Categories</div>
               {CATEGORIES_BASE.map(({ label, color }) => {
-                const liveCount = stats?.categoryCounts?.[label] || 0;
-                
+                const liveCount = stats?.categoryCounts?.[label] || 0
+
                 return (
-                  <a key={label} href={`/documents?category=${label}`} style={{ textDecoration: 'none', display: 'block' }} onClick={(e) => handleCategoryClick(e, label)}>
+                  <div key={label} style={{ textDecoration: 'none', display: 'block', cursor: 'pointer' }} onClick={(e) => handleCategoryClick(e, label)}>
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '7px 10px', borderRadius: 8, marginBottom: 1, cursor: 'pointer',
@@ -182,13 +175,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
                         {liveCount}
                       </span>
                     </div>
-                  </a>
+                  </div>
                 )
               })}
             </motion.div>
           )}
         </AnimatePresence>
-       */}
       </nav>
 
       <AnimatePresence>

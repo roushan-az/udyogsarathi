@@ -10,72 +10,70 @@ import { useApp } from '../context/AppContext'
 import { CATEGORIES, CATEGORY_COLORS } from '../utils'
 import type { DocumentCategory } from '../types'
 
-type SortKey  = 'uploadedAt' | 'fileName' | 'fileSize' | 'category'
-type ViewMode = 'grid' | 'list'
+type SortKey    = 'uploadedAt' | 'fileName' | 'fileSize' | 'category'
+type ViewMode   = 'grid' | 'list'
+type StatusFilter = 'All' | 'uploaded' | 'processing' | 'failed' | 'queued'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 export const DocumentsPage: React.FC = () => {
-  // 1. 👇 Extracted `filters` from useApp to sync with Sidebar
-  const { documents, isLoading, error, pagination, refreshDocuments, filters, setFilters, setPagination } = useApp()
+  const { documents, isLoading, error, refreshDocuments, filters } = useApp()
   const location = useLocation()
   const navigate = useNavigate()
 
-  // 2. 👇 Check the URL parameters first to ensure perfect sync
-  const queryParams = new URLSearchParams(location.search)
-  const urlCategory = queryParams.get('category') as DocumentCategory | 'All' | null
-
-  const [viewMode,        setViewMode]        = useState<ViewMode>('list')
-  const [search,          setSearch]          = useState(filters?.search || '')
-  // 3. 👇 Initialize state using the URL or global filters, NEVER hardcode 'All'
-  const [categoryFilter,  setCategoryFilter]  = useState<DocumentCategory | 'All'>(urlCategory || filters?.category || 'All')
-  const [statusFilter,    setStatusFilter]    = useState(filters?.status || 'All')
-  const [sortKey,         setSortKey]         = useState<SortKey>('uploadedAt')
-  const [sortAsc,         setSortAsc]         = useState(false)
-  const [page,            setPage]            = useState(1)
+  const [viewMode,       setViewMode]       = useState<ViewMode>('list')
+  const [search,         setSearch]         = useState(filters?.search || '')
+  const [categoryFilter, setCategoryFilter] = useState<DocumentCategory | 'All'>(() => {
+    const p = new URLSearchParams(location.search)
+    return (p.get('category') as DocumentCategory) || filters?.category || 'All'
+  })
+  const [statusFilter,   setStatusFilter]   = useState<StatusFilter>((filters?.status as StatusFilter) || 'All')
+  const [sortKey,        setSortKey]        = useState<SortKey>('uploadedAt')
+  const [sortAsc,        setSortAsc]        = useState(false)
+  const [page,           setPage]           = useState(1)
   const PAGE_SIZE = viewMode === 'grid' ? 9 : 10
 
-  // ── Initial fetch only - then filter client-side from cache ──────────────
+  // ── Initial fetch only ────────────────────────────────────────────────────
   useEffect(() => {
-    // Only fetch ALL documents once on mount or manual refresh
-    // All filtering happens client-side from this cached data
     if (!USE_MOCK && documents.length === 0) {
       refreshDocuments({ category: 'All', status: 'All' }, { page: 1, pageSize: 1000 })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Empty deps - only run once on mount
+  }, [])
 
-  // ── Update URL when category changes (but don't make API calls) ───────────
+  // ── KEY FIX: Sync categoryFilter FROM URL whenever URL changes ────────────
+  // This handles sidebar clicks which change the URL externally.
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    if (categoryFilter !== 'All') {
-      params.set('category', categoryFilter)
-    } else {
-      params.delete('category')
-    }
-    navigate(`/documents?${params.toString()}`, { replace: true })
-  }, [categoryFilter, location.search, navigate])
+    const urlCat = (params.get('category') as DocumentCategory) || 'All'
+    setCategoryFilter(urlCat)
+    setPage(1)
+  }, [location.search])
 
-  // ── Client-side filtering and sorting from cached documents ───────────────
+  // ── Sync URL when categoryFilter changes from within the page ────────────
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const urlCat = params.get('category') || 'All'
+    // Guard: only push URL change if it differs — prevents infinite loop
+    if (urlCat === categoryFilter) return
+    const next = new URLSearchParams()
+    if (categoryFilter !== 'All') next.set('category', categoryFilter)
+    navigate(`/documents?${next.toString()}`, { replace: true })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryFilter, navigate])
+
+  // ── Client-side filtering and sorting ────────────────────────────────────
   const sorted = useMemo(() => {
     let docs = [...documents]
-
-    // Always filter client-side from the cached "All" documents
-    if (categoryFilter !== 'All') {
-      docs = docs.filter(d => d.category === categoryFilter)
-    }
-    if (statusFilter !== 'All') {
-      docs = docs.filter(d => d.status === statusFilter)
-    }
+    if (categoryFilter !== 'All') docs = docs.filter(d => d.category === categoryFilter)
+    if (statusFilter !== 'All')   docs = docs.filter(d => d.status === statusFilter)
     if (search) {
       const q = search.toLowerCase()
-      docs = docs.filter(d => 
-        d.originalName.toLowerCase().includes(q) || 
+      docs = docs.filter(d =>
+        d.originalName.toLowerCase().includes(q) ||
         (d.tags && d.tags.some(t => t.toLowerCase().includes(q)))
       )
     }
-
-    // Sort the filtered results
     docs.sort((a, b) => {
       let cmp = 0
       if (sortKey === 'uploadedAt') cmp = new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime()
@@ -87,12 +85,11 @@ export const DocumentsPage: React.FC = () => {
     return docs
   }, [documents, sortKey, sortAsc, categoryFilter, statusFilter, search])
 
-  // ── Client-side pagination from filtered results ──────────────────────────
+  // ── Client-side pagination ────────────────────────────────────────────────
   const displayDocs = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const totalDocs  = sorted.length
-  const totalPages = Math.ceil(totalDocs / PAGE_SIZE)
-
-  const hasFilters = search || categoryFilter !== 'All' || statusFilter !== 'All'
+  const totalDocs   = sorted.length
+  const totalPages  = Math.ceil(totalDocs / PAGE_SIZE)
+  const hasFilters  = search || categoryFilter !== 'All' || statusFilter !== 'All'
 
   const clearFilters = () => {
     setSearch(''); setCategoryFilter('All'); setStatusFilter('All'); setPage(1)
@@ -116,9 +113,9 @@ export const DocumentsPage: React.FC = () => {
         </div>
 
         {/* Status */}
-        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
+        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value as StatusFilter); setPage(1) }}
           style={{ height: 36, padding: '0 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, fontSize: 12.5, color: 'rgba(255,255,255,0.7)', outline: 'none', cursor: 'pointer', flex: '0 0 auto' }}>
-          {['All', 'uploaded', 'processing', 'failed', 'queued'].map(s => (
+          {(['All', 'uploaded', 'processing', 'failed', 'queued'] as StatusFilter[]).map(s => (
             <option key={s} value={s} style={{ background: '#1a2b4e' }}>{s === 'All' ? 'All Status' : s}</option>
           ))}
         </select>
@@ -210,9 +207,7 @@ export const DocumentsPage: React.FC = () => {
       ) : (
         <div style={{ background: 'rgba(21,34,64,0.85)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden' }}>
           <AnimatePresence>
-            {displayDocs.map(doc => (
-              <DocumentCard key={doc.id} document={doc} view="list" />
-            ))}
+            {displayDocs.map(doc => <DocumentCard key={doc.id} document={doc} view="list" />)}
           </AnimatePresence>
         </div>
       )}

@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Cloud, Database, Server, Shield, Bell, Palette, Save, CheckCircle, XCircle, Loader2, RefreshCw, Lock } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { useApp } from '../context/AppContext'
 import { healthService, type HealthStatus } from '../services/api'
 import toast from 'react-hot-toast'
-import { useApp } from '../context/AppContext'
 
 // ── Reusable sub-components ───────────────────────────────────────────────────
 
@@ -29,7 +29,6 @@ const Field: React.FC<{ label: string; value: string; onChange?: (v: string) => 
   </div>
 )
 
-// Updated Toggle to accept a disabled state for non-admins
 const Toggle: React.FC<{ label: string; sub?: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }> = ({ label, sub, checked, onChange, disabled }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, opacity: disabled ? 0.6 : 1 }}>
     <div>
@@ -52,9 +51,11 @@ const ConnPill: React.FC<{ ok: boolean | null; label: string }> = ({ ok, label }
 )
 
 export const SettingsPage: React.FC = () => {
-
+  // ✅ FIX: Read currentUser from AppContext — the same source of truth used everywhere else.
+  // The old code used localStorage.getItem('auth_user') which never gets set by this app
+  // (the actual keys are auth_token / token, not auth_user), so isSuperuser was always null.
   const { currentUser } = useApp()
-  const isSuperuser = currentUser?.is_superuser === true
+  const isSuperuser = (currentUser as any)?.is_superuser === true || (currentUser as any)?.isSuperuser === true
 
   const [storageAccount, setStorageAccount] = useState(import.meta.env.VITE_R2_ACCOUNT_ID || '74a3ad8b6d42ad00c97803ed2a068ebb')
   const [storageBucket,  setStorageBucket]  = useState(import.meta.env.VITE_R2_BUCKET_NAME || 'udyog-sarathi-docs')
@@ -67,8 +68,8 @@ export const SettingsPage: React.FC = () => {
   const [autoRetry,    setAutoRetry]    = useState(false)
   const [saving,       setSaving]       = useState(false)
 
-  const [health,         setHealth]         = useState<HealthStatus | null>(null)
-  const [healthLoading,  setHealthLoading]  = useState(false)
+  const [health,        setHealth]        = useState<HealthStatus | null>(null)
+  const [healthLoading, setHealthLoading] = useState(false)
 
   const fetchHealth = async () => {
     setHealthLoading(true)
@@ -84,8 +85,14 @@ export const SettingsPage: React.FC = () => {
 
   useEffect(() => { fetchHealth() }, [])
 
+  useEffect(() => {
+    setNotifyUpload(localStorage.getItem('us_notify_upload') !== 'false')
+    setNotifyFail(localStorage.getItem('us_notify_fail') !== 'false')
+    setAutoRetry(localStorage.getItem('us_auto_retry') === 'true')
+  }, [])
+
   const handleSave = async () => {
-    if (!isSuperuser) return // Extra safeguard
+    if (!isSuperuser) return
     setSaving(true)
     try {
       localStorage.setItem('us_notify_upload', String(notifyUpload))
@@ -97,12 +104,6 @@ export const SettingsPage: React.FC = () => {
       setSaving(false)
     }
   }
-
-  useEffect(() => {
-    setNotifyUpload(localStorage.getItem('us_notify_upload') !== 'false')
-    setNotifyFail(localStorage.getItem('us_notify_fail') !== 'false')
-    setAutoRetry(localStorage.getItem('us_auto_retry') === 'true')
-  }, [])
 
   return (
     <Layout title="Settings" subtitle="Cloud services, notifications and app configuration">
@@ -135,8 +136,8 @@ export const SettingsPage: React.FC = () => {
         {/* ── Cloud Storage ─────────────────────────────────────────────────── */}
         <Section title="Cloud Storage (Cloudflare R2)" icon={<Cloud size={16} />} delay={0.06}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-            <Field label="R2 Account ID" value={storageAccount} onChange={setStorageAccount} mono readOnly={!isSuperuser} />
-            <Field label="R2 Bucket Name"   value={storageBucket}  onChange={setStorageBucket} readOnly={!isSuperuser} />
+            <Field label="R2 Account ID"  value={storageAccount} onChange={setStorageAccount} mono readOnly={!isSuperuser} />
+            <Field label="R2 Bucket Name" value={storageBucket}  onChange={setStorageBucket}      readOnly={!isSuperuser} />
           </div>
           <Field label="Endpoint (computed)" value={`https://${storageAccount}.r2.cloudflarestorage.com/${storageBucket}`} readOnly mono />
           <div style={{ padding: '10px 14px', borderRadius: 9, background: health?.storage ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.07)', border: `1px solid ${health?.storage ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'}`, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: health?.storage ? '#4ade80' : '#f87171' }}>
@@ -149,7 +150,7 @@ export const SettingsPage: React.FC = () => {
         <Section title="PostgreSQL — Supabase Pooler" icon={<Database size={16} />} delay={0.12}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
             <Field label="Host"     value={pgHost} onChange={setPgHost} mono readOnly={!isSuperuser} />
-            <Field label="Database" value={pgDb}   onChange={setPgDb} readOnly={!isSuperuser} />
+            <Field label="Database" value={pgDb}   onChange={setPgDb}       readOnly={!isSuperuser} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="Port"      value="5432"    readOnly mono />
@@ -176,16 +177,16 @@ export const SettingsPage: React.FC = () => {
 
         {/* ── Security ─────────────────────────────────────────────────────── */}
         <Section title="Security" icon={<Shield size={16} />} delay={0.24}>
-          <Toggle label="JWT Bearer authentication"   sub="Validated on every FastAPI endpoint" checked={true} onChange={() => { if (isSuperuser) toast('JWT auth is always enabled') }} disabled={!isSuperuser} />
-          <Toggle label="Storage SSE at rest"         sub="Provider-managed encryption keys"    checked={true} onChange={() => { if (isSuperuser) toast('Encryption is always on') }} disabled={!isSuperuser} />
-          <Toggle label="CORS whitelist"              sub="Only React Static Web App origin"    checked={true} onChange={() => {}} disabled={!isSuperuser} />
-          <Toggle label="Auto-rollback on DB failure" sub="Delete blob if PostgreSQL transaction fails" checked={autoRetry} onChange={setAutoRetry} disabled={!isSuperuser} />
+          <Toggle label="JWT Bearer authentication"   sub="Validated on every FastAPI endpoint"          checked={true}      onChange={() => { if (isSuperuser) toast('JWT auth is always enabled') }}  disabled={!isSuperuser} />
+          <Toggle label="Storage SSE at rest"         sub="Provider-managed encryption keys"             checked={true}      onChange={() => { if (isSuperuser) toast('Encryption is always on') }}    disabled={!isSuperuser} />
+          <Toggle label="CORS whitelist"              sub="Only React Static Web App origin"             checked={true}      onChange={() => {}}                                                        disabled={!isSuperuser} />
+          <Toggle label="Auto-rollback on DB failure" sub="Delete blob if PostgreSQL transaction fails"  checked={autoRetry} onChange={setAutoRetry}                                                    disabled={!isSuperuser} />
         </Section>
 
         {/* ── Notifications ─────────────────────────────────────────────────── */}
         <Section title="Notifications" icon={<Bell size={16} />} delay={0.3}>
           <Toggle label="Notify on successful upload" sub="Toast notification on every successful upload" checked={notifyUpload} onChange={setNotifyUpload} disabled={!isSuperuser} />
-          <Toggle label="Notify on upload failure"    sub="Error details + rollback confirmation"         checked={notifyFail}   onChange={setNotifyFail} disabled={!isSuperuser} />
+          <Toggle label="Notify on upload failure"    sub="Error details + rollback confirmation"         checked={notifyFail}   onChange={setNotifyFail}   disabled={!isSuperuser} />
         </Section>
 
         {/* ── Appearance ───────────────────────────────────────────────────── */}
@@ -196,7 +197,7 @@ export const SettingsPage: React.FC = () => {
           </div>
         </Section>
 
-        {/* ── Save (Only visible to Admins) ─────────────────────────────────── */}
+        {/* ── Save (only visible to admins) ─────────────────────────────────── */}
         {isSuperuser && (
           <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={saving}
             style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 28px', background: saving ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg,#f97316,#ea6906)', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, color: saving ? 'rgba(255,255,255,0.3)' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', boxShadow: saving ? 'none' : '0 0 24px rgba(249,115,22,0.35)' }}>

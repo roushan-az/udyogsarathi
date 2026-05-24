@@ -5,7 +5,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Upload, FolderOpen, BarChart3, Settings,
-  ChevronLeft, ChevronRight, Building2, Database, X
+  ChevronLeft, ChevronRight, Building2, Database, X, Shield
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import type { DocumentCategory } from '../types'
@@ -33,35 +33,32 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
-  const { sidebarCollapsed, setSidebarCollapsed, stats, filters, setFilters, refreshDocuments } = useApp()
+  const { sidebarCollapsed, setSidebarCollapsed, stats, filters, setFilters } = useApp()
   const location = useLocation()
   const navigate = useNavigate()
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
   const showExpanded = isMobile ? true : !sidebarCollapsed
 
-  // 1. INSTANT NAVIGATION (startTransition removed!)
+  // Navigate to category - DocumentsPage will filter from cached documents
   const handleCategoryClick = (e: React.MouseEvent, categoryLabel: DocumentCategory) => {
     e.preventDefault()
     
+    // Just update the filter state and navigate
+    // DocumentsPage will handle filtering from its cached documents
     const newFilters = { ...filters, category: categoryLabel }
-    
     setFilters(newFilters)
     navigate(`/documents?category=${categoryLabel}`)
-    
-    // Call the cache! It will return 0ms hits.
-    refreshDocuments(newFilters, { page: 1 }, true)
     
     if (onMobileClose) onMobileClose()
   }
 
-  // 2. INSTANT NAVIGATION (startTransition removed!)
+  // Navigate to Documents page with All filter
   const handleNavClick = (to: string) => {
     if (to === '/documents') {
+      // Reset to "All" category - DocumentsPage will filter from cache
       const resetFilters = { ...filters, category: 'All' as any }
-      
       setFilters(resetFilters)
-      refreshDocuments(resetFilters, { page: 1 }, true)
     }
     if (onMobileClose) onMobileClose()
   }
@@ -158,7 +155,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
           )
         })}
 
-        {/* Categories */}
+        {/* Categories 
+        
         <AnimatePresence>
           {showExpanded && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ marginTop: 22 }}>
@@ -190,6 +188,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
             </motion.div>
           )}
         </AnimatePresence>
+       */}
       </nav>
 
       <AnimatePresence>

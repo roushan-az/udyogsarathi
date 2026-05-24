@@ -27,11 +27,11 @@ interface AppContextValue {
   analyticsLoading:    boolean;
   error:               string | null;
   sidebarCollapsed:    boolean;
-  currentUser:         { name: string; email: string } | null;
+  currentUser: { name: string; email: string; is_superuser?: boolean } | null;
   setFilters:          (f: FilterOptions) => void;
   setPagination:       (p: Partial<PaginationState>) => void;
   setSidebarCollapsed: (v: boolean) => void;
-  setCurrentUser:      (u: { name: string; email: string } | null) => void;
+  setCurrentUser:      (u: { name: string; email: string; is_superuser?: boolean } | null) => void;
   addDocument:         (doc: Document) => void;
   removeDocument:      (id: string) => void;
   // silent=true → background refresh, no spinner shown
@@ -53,7 +53,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [error,            setError]            = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [currentUser,      setCurrentUser]      = useState<{ name: string; email: string } | null>(null);
+  const [currentUser,      setCurrentUser]      = useState<{ name: string; email: string; is_superuser?: boolean } | null>(null);
   const [filters,          setFiltersState]     = useState<FilterOptions>({ category: 'All', status: 'All' });
   const [pagination,       setPaginationState]  = useState<PaginationState>({ page: 1, pageSize: 10, total: 0 });
 

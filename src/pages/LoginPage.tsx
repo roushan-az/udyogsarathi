@@ -52,7 +52,7 @@ export const LoginPage: React.FC = () => {
 
       // Fetch the user profile to populate currentUser
       const user = await authService.me()
-      setCurrentUser({ name: user.fullName, email: user.email })
+      setCurrentUser({ name: user.fullName, email: user.email, is_superuser: user.isSuperuser })
 
       // Kick off data fetch now that we have a token
       refreshDocuments()
@@ -77,7 +77,7 @@ export const LoginPage: React.FC = () => {
   const handleDevLogin = async () => {
     // Sets a dev token that the FastAPI backend (DEBUG=True) accepts as 'dev-user'
     localStorage.setItem('auth_token', 'dev')
-    setCurrentUser({ name: 'Dev Admin', email: 'dev@udyogsarathi.local' })
+    setCurrentUser({ name: 'Dev Admin', email: 'dev@udyogsarathi.local' , is_superuser: false})
     //refreshDocuments()
     //refreshStats()
     toast.success('Dev mode — bypassing auth')

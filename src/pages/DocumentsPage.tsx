@@ -1,5 +1,7 @@
+// src/pages/DocumentsPage.tsx
 
 import React, { useState, useEffect, useMemo } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Filter, Grid3X3, List, SortAsc, SortDesc, X, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { Layout } from '../components/Layout'
@@ -14,36 +16,51 @@ type ViewMode = 'grid' | 'list'
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 export const DocumentsPage: React.FC = () => {
-  const { documents, isLoading, error, pagination, refreshDocuments, setFilters, setPagination } = useApp()
+  // 1. 👇 Extracted `filters` from useApp to sync with Sidebar
+  const { documents, isLoading, error, pagination, refreshDocuments, filters, setFilters, setPagination } = useApp()
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // 2. 👇 Check the URL parameters first to ensure perfect sync
+  const queryParams = new URLSearchParams(location.search)
+  const urlCategory = queryParams.get('category') as DocumentCategory | 'All' | null
 
   const [viewMode,        setViewMode]        = useState<ViewMode>('list')
-  const [search,          setSearch]          = useState('')
-  const [categoryFilter,  setCategoryFilter]  = useState<DocumentCategory | 'All'>('All')
-  const [statusFilter,    setStatusFilter]    = useState('All')
+  const [search,          setSearch]          = useState(filters?.search || '')
+  // 3. 👇 Initialize state using the URL or global filters, NEVER hardcode 'All'
+  const [categoryFilter,  setCategoryFilter]  = useState<DocumentCategory | 'All'>(urlCategory || filters?.category || 'All')
+  const [statusFilter,    setStatusFilter]    = useState(filters?.status || 'All')
   const [sortKey,         setSortKey]         = useState<SortKey>('uploadedAt')
   const [sortAsc,         setSortAsc]         = useState(false)
   const [page,            setPage]            = useState(1)
   const PAGE_SIZE = viewMode === 'grid' ? 9 : 10
 
-  // ── Push filter/pagination changes to AppContext → API ────────────────────
+  // ── Initial fetch only - then filter client-side from cache ──────────────
   useEffect(() => {
-    const newFilters = {
-      category: categoryFilter,
-      status:   statusFilter as 'All' | 'uploaded' | 'processing' | 'failed' | 'queued',
-      search:   search || undefined,
-    }
-    setFilters(newFilters)
-    setPagination({ page, pageSize: PAGE_SIZE })
-
-    if (!USE_MOCK) {
-      refreshDocuments(newFilters, { page, pageSize: PAGE_SIZE })
+    // Only fetch ALL documents once on mount or manual refresh
+    // All filtering happens client-side from this cached data
+    if (!USE_MOCK && documents.length === 0) {
+      refreshDocuments({ category: 'All', status: 'All' }, { page: 1, pageSize: 1000 })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryFilter, statusFilter, search, page, PAGE_SIZE])
+  }, []) // Empty deps - only run once on mount
 
-  // ── Client-side sort (backend returns pre-filtered list) ──────────────────
+  // ── Update URL when category changes (but don't make API calls) ───────────
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (categoryFilter !== 'All') {
+      params.set('category', categoryFilter)
+    } else {
+      params.delete('category')
+    }
+    navigate(`/documents?${params.toString()}`, { replace: true })
+  }, [categoryFilter, location.search, navigate])
+
+  // ── Client-side filtering and sorting from cached documents ───────────────
   const sorted = useMemo(() => {
     let docs = [...documents]
+
+    // Always filter client-side from the cached "All" documents
     if (categoryFilter !== 'All') {
       docs = docs.filter(d => d.category === categoryFilter)
     }
@@ -57,6 +74,8 @@ export const DocumentsPage: React.FC = () => {
         (d.tags && d.tags.some(t => t.toLowerCase().includes(q)))
       )
     }
+
+    // Sort the filtered results
     docs.sort((a, b) => {
       let cmp = 0
       if (sortKey === 'uploadedAt') cmp = new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime()
@@ -68,12 +87,9 @@ export const DocumentsPage: React.FC = () => {
     return docs
   }, [documents, sortKey, sortAsc, categoryFilter, statusFilter, search])
 
-  // In mock mode, paginate locally; in real mode pagination is server-side
-  const displayDocs = USE_MOCK
-    ? sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-    : sorted
-
-  const totalDocs  = USE_MOCK ? sorted.length : pagination.total
+  // ── Client-side pagination from filtered results ──────────────────────────
+  const displayDocs = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalDocs  = sorted.length
   const totalPages = Math.ceil(totalDocs / PAGE_SIZE)
 
   const hasFilters = search || categoryFilter !== 'All' || statusFilter !== 'All'
@@ -132,7 +148,7 @@ export const DocumentsPage: React.FC = () => {
         </div>
 
         {/* Refresh */}
-        <button onClick={() => refreshDocuments()}
+        <button onClick={() => refreshDocuments({ category: 'All', status: 'All' }, { page: 1, pageSize: 1000 })}
           style={{ height: 36, width: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, color: 'rgba(255,255,255,0.5)', cursor: 'pointer', flex: '0 0 auto', transition: 'color 0.15s' }}
           onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = '#f97316'}
           onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.5)'}>
@@ -171,7 +187,7 @@ export const DocumentsPage: React.FC = () => {
       {error && (
         <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', fontSize: 13, color: '#f87171', marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
           ⚠ {error} — showing cached data.
-          <button onClick={() => refreshDocuments()} style={{ marginLeft: 'auto', fontSize: 12, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Retry</button>
+          <button onClick={() => refreshDocuments({ category: 'All', status: 'All' }, { page: 1, pageSize: 1000 })} style={{ marginLeft: 'auto', fontSize: 12, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Retry</button>
         </div>
       )}
 
@@ -187,19 +203,19 @@ export const DocumentsPage: React.FC = () => {
           <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>No documents found</div>
           <div style={{ fontSize: 13 }}>Try different filters or upload a new document</div>
         </motion.div>
-) : viewMode === 'grid' ? (
-  <motion.div layout style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
-    <AnimatePresence>{displayDocs.map(doc => <DocumentCard key={doc.id} document={doc} view="list" />)}</AnimatePresence>
-  </motion.div>
-) : (
-  <div style={{ background: 'rgba(21,34,64,0.85)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden' }}>
-    <AnimatePresence>
-      {displayDocs.map(doc => (
-        <DocumentCard key={doc.id} document={doc} view="list" />
-      ))}
-    </AnimatePresence>
-  </div>
-)}
+      ) : viewMode === 'grid' ? (
+        <motion.div layout style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
+          <AnimatePresence>{displayDocs.map(doc => <DocumentCard key={doc.id} document={doc} view="grid" />)}</AnimatePresence>
+        </motion.div>
+      ) : (
+        <div style={{ background: 'rgba(21,34,64,0.85)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden' }}>
+          <AnimatePresence>
+            {displayDocs.map(doc => (
+              <DocumentCard key={doc.id} document={doc} view="list" />
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* ── Pagination ── */}
       {totalPages > 1 && (

@@ -56,6 +56,23 @@ function AppShell() {
     )
   }
  
+  const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+    const userStr = localStorage.getItem('auth_user')
+    const user = userStr ? JSON.parse(userStr) : null
+    
+    if (!user || (!user.isSuperuser && !user.is_superuser)) {
+      return <Navigate to="/" replace /> // Kick non-admins back to dashboard
+    }
+    return <>{children}</>
+  }
+
+  const AdminPlaceholder = () => (
+      <div style={{ color: 'white', padding: 50 }}>
+        <h1>Admin Panel</h1>
+        <p>User management coming soon...</p>
+      </div>
+    )
+
   return (
     <Routes>
       {/* ── Public ── */}
@@ -68,6 +85,8 @@ function AppShell() {
       <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
       <Route path="/settings"  element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+
+      <Route path="/admin"     element={<AdminRoute><AdminPlaceholder /></AdminRoute>}/>
 
       {/* ── Catch-all ── */}
       <Route path="*" element={<Navigate to="/" replace />} />

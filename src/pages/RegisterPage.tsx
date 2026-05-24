@@ -88,6 +88,8 @@ export const RegisterPage: React.FC = () => {
 
   const { setCurrentUser, refreshDocuments, refreshStats } = useApp();
 
+  const [adminSecret, setAdminSecret] = useState('')
+
   const strength = getPasswordStrength(password)
 
   // Redirect if already authenticated
@@ -122,6 +124,7 @@ export const RegisterPage: React.FC = () => {
         email:     email.trim().toLowerCase(),
         password,
         full_name: fullName.trim(),
+        admin_secret: adminSecret || undefined, 
       })
 
       setSuccess(true)
@@ -131,7 +134,7 @@ export const RegisterPage: React.FC = () => {
       await authService.login({ email: email.trim().toLowerCase(), password })
       setTimeout(() => navigate('/', { replace: true }), 800)
       const user = await authService.me();
-      setCurrentUser({ name: user.fullName, email: user.email });
+      setCurrentUser({ name: user.fullName, email: user.email, is_superuser: user.isSuperuser });
       refreshDocuments();
       refreshStats();
       navigate('/', { replace: true });
@@ -300,6 +303,17 @@ export const RegisterPage: React.FC = () => {
                 </div>
                 {fieldErrors.confirmPassword && <p style={{ fontSize: 12, color: '#f87171', marginTop: 5 }}>{fieldErrors.confirmPassword}</p>}
               </div>
+              
+              <InputField 
+                label="Admin Secret Key (Optional)" 
+                value={adminSecret} 
+                onChange={setAdminSecret}
+                type="password" 
+                placeholder="Leave blank for regular users" 
+                icon={<Lock size={15} />}
+                autoComplete="off" 
+                setFieldErrors={setFieldErrors}
+              />
 
               <motion.button type="submit" whileHover={!loading ? { scale: 1.01 } : {}} whileTap={!loading ? { scale: 0.98 } : {}} disabled={loading}
                 style={{

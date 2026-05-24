@@ -50,7 +50,12 @@ api.interceptors.response.use(
 // ── Auth service ──────────────────────────────────────────────────────────────
 
 export interface LoginPayload  { email: string; password: string }
-export interface RegisterPayload { email: string; password: string; full_name: string }
+export interface RegisterPayload { 
+  email: string; 
+  password: string; 
+  full_name: string; 
+  admin_secret?: string; 
+}
 
 export interface TokenResponse {
   accessToken: string;

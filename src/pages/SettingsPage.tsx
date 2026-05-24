@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Cloud, Database, Server, Shield, Bell, Palette, Save, CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react'
+import { Cloud, Database, Server, Shield, Bell, Palette, Save, CheckCircle, XCircle, Loader2, RefreshCw, Lock } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { useApp } from '../context/AppContext'
 import { healthService, type HealthStatus } from '../services/api'
 import toast from 'react-hot-toast'
 
@@ -28,14 +29,14 @@ const Field: React.FC<{ label: string; value: string; onChange?: (v: string) => 
   </div>
 )
 
-const Toggle: React.FC<{ label: string; sub?: string; checked: boolean; onChange: (v: boolean) => void }> = ({ label, sub, checked, onChange }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+const Toggle: React.FC<{ label: string; sub?: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }> = ({ label, sub, checked, onChange, disabled }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, opacity: disabled ? 0.6 : 1 }}>
     <div>
       <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>{label}</div>
       {sub && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{sub}</div>}
     </div>
-    <button onClick={() => onChange(!checked)}
-      style={{ width: 44, height: 24, borderRadius: 12, background: checked ? 'rgba(249,115,22,0.8)' : 'rgba(255,255,255,0.1)', border: 'none', position: 'relative', cursor: 'pointer', transition: 'background 0.2s ease', flexShrink: 0 }}>
+    <button onClick={() => { if (!disabled) onChange(!checked) }} disabled={disabled}
+      style={{ width: 44, height: 24, borderRadius: 12, background: checked ? 'rgba(249,115,22,0.8)' : 'rgba(255,255,255,0.1)', border: 'none', position: 'relative', cursor: disabled ? 'not-allowed' : 'pointer', transition: 'background 0.2s ease', flexShrink: 0 }}>
       <motion.div animate={{ x: checked ? 22 : 2 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }}
         style={{ position: 'absolute', top: 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }} />
     </button>
@@ -50,7 +51,12 @@ const ConnPill: React.FC<{ ok: boolean | null; label: string }> = ({ ok, label }
 )
 
 export const SettingsPage: React.FC = () => {
-  // Corrected fallbacks to point directly to Cloudflare R2 configurations from your framework setup
+  // ✅ FIX: Read currentUser from AppContext — the same source of truth used everywhere else.
+  // The old code used localStorage.getItem('auth_user') which never gets set by this app
+  // (the actual keys are auth_token / token, not auth_user), so isSuperuser was always null.
+  const { currentUser } = useApp()
+  const isSuperuser = (currentUser as any)?.is_superuser === true || (currentUser as any)?.isSuperuser === true
+
   const [storageAccount, setStorageAccount] = useState(import.meta.env.VITE_R2_ACCOUNT_ID || '74a3ad8b6d42ad00c97803ed2a068ebb')
   const [storageBucket,  setStorageBucket]  = useState(import.meta.env.VITE_R2_BUCKET_NAME || 'udyog-sarathi-docs')
   const [pgHost,         setPgHost]         = useState(import.meta.env.VITE_PG_HOST         || 'aws-1-ap-southeast-1.pooler.supabase.com')
@@ -62,8 +68,8 @@ export const SettingsPage: React.FC = () => {
   const [autoRetry,    setAutoRetry]    = useState(false)
   const [saving,       setSaving]       = useState(false)
 
-  const [health,         setHealth]         = useState<HealthStatus | null>(null)
-  const [healthLoading,  setHealthLoading]  = useState(false)
+  const [health,        setHealth]        = useState<HealthStatus | null>(null)
+  const [healthLoading, setHealthLoading] = useState(false)
 
   const fetchHealth = async () => {
     setHealthLoading(true)
@@ -79,7 +85,14 @@ export const SettingsPage: React.FC = () => {
 
   useEffect(() => { fetchHealth() }, [])
 
+  useEffect(() => {
+    setNotifyUpload(localStorage.getItem('us_notify_upload') !== 'false')
+    setNotifyFail(localStorage.getItem('us_notify_fail') !== 'false')
+    setAutoRetry(localStorage.getItem('us_auto_retry') === 'true')
+  }, [])
+
   const handleSave = async () => {
+    if (!isSuperuser) return
     setSaving(true)
     try {
       localStorage.setItem('us_notify_upload', String(notifyUpload))
@@ -92,15 +105,15 @@ export const SettingsPage: React.FC = () => {
     }
   }
 
-  useEffect(() => {
-    setNotifyUpload(localStorage.getItem('us_notify_upload') !== 'false')
-    setNotifyFail(localStorage.getItem('us_notify_fail') !== 'false')
-    setAutoRetry(localStorage.getItem('us_auto_retry') === 'true')
-  }, [])
-
   return (
     <Layout title="Settings" subtitle="Cloud services, notifications and app configuration">
       <div style={{ maxWidth: 720 }}>
+
+        {!isSuperuser && (
+          <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', fontSize: 13, color: '#93c5fd', marginBottom: 20, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Lock size={15} /> You are viewing this page in read-only mode. Only administrators can change settings.
+          </div>
+        )}
 
         {/* ── Service health ────────────────────────────────────────────────── */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -123,10 +136,9 @@ export const SettingsPage: React.FC = () => {
         {/* ── Cloud Storage ─────────────────────────────────────────────────── */}
         <Section title="Cloud Storage (Cloudflare R2)" icon={<Cloud size={16} />} delay={0.06}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-            <Field label="R2 Account ID" value={storageAccount} onChange={setStorageAccount} mono />
-            <Field label="R2 Bucket Name"   value={storageBucket}  onChange={setStorageBucket} />
+            <Field label="R2 Account ID"  value={storageAccount} onChange={setStorageAccount} mono readOnly={!isSuperuser} />
+            <Field label="R2 Bucket Name" value={storageBucket}  onChange={setStorageBucket}      readOnly={!isSuperuser} />
           </div>
-          {/* Updated template computation to point specifically to your R2 cluster endpoint layout */}
           <Field label="Endpoint (computed)" value={`https://${storageAccount}.r2.cloudflarestorage.com/${storageBucket}`} readOnly mono />
           <div style={{ padding: '10px 14px', borderRadius: 9, background: health?.storage ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.07)', border: `1px solid ${health?.storage ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'}`, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: health?.storage ? '#4ade80' : '#f87171' }}>
             {health?.storage ? <CheckCircle size={14} /> : <XCircle size={14} />}
@@ -137,8 +149,8 @@ export const SettingsPage: React.FC = () => {
         {/* ── PostgreSQL ────────────────────────────────────────────────────── */}
         <Section title="PostgreSQL — Supabase Pooler" icon={<Database size={16} />} delay={0.12}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-            <Field label="Host"     value={pgHost} onChange={setPgHost} mono />
-            <Field label="Database" value={pgDb}   onChange={setPgDb} />
+            <Field label="Host"     value={pgHost} onChange={setPgHost} mono readOnly={!isSuperuser} />
+            <Field label="Database" value={pgDb}   onChange={setPgDb}       readOnly={!isSuperuser} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="Port"      value="5432"    readOnly mono />
@@ -153,7 +165,7 @@ export const SettingsPage: React.FC = () => {
 
         {/* ── FastAPI ───────────────────────────────────────────────────────── */}
         <Section title="FastAPI Backend" icon={<Server size={16} />} delay={0.18}>
-          <Field label="API Base URL" value={apiUrl} onChange={setApiUrl} />
+          <Field label="API Base URL" value={apiUrl} onChange={setApiUrl} readOnly={!isSuperuser} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="Environment" value="Development" readOnly />
             <Field label="Runtime"     value="Python 3.12" readOnly />
@@ -165,32 +177,35 @@ export const SettingsPage: React.FC = () => {
 
         {/* ── Security ─────────────────────────────────────────────────────── */}
         <Section title="Security" icon={<Shield size={16} />} delay={0.24}>
-          <Toggle label="JWT Bearer authentication"   sub="Validated on every FastAPI endpoint" checked={true} onChange={() => toast('JWT auth is always enabled')} />
-          <Toggle label="Storage SSE at rest"         sub="Provider-managed encryption keys"    checked={true} onChange={() => toast('Encryption is always on')} />
-          <Toggle label="CORS whitelist"              sub="Only React Static Web App origin"    checked={true} onChange={() => {}} />
-          <Toggle label="Auto-rollback on DB failure" sub="Delete blob if PostgreSQL transaction fails" checked={autoRetry} onChange={setAutoRetry} />
+          <Toggle label="JWT Bearer authentication"   sub="Validated on every FastAPI endpoint"          checked={true}      onChange={() => { if (isSuperuser) toast('JWT auth is always enabled') }}  disabled={!isSuperuser} />
+          <Toggle label="Storage SSE at rest"         sub="Provider-managed encryption keys"             checked={true}      onChange={() => { if (isSuperuser) toast('Encryption is always on') }}    disabled={!isSuperuser} />
+          <Toggle label="CORS whitelist"              sub="Only React Static Web App origin"             checked={true}      onChange={() => {}}                                                        disabled={!isSuperuser} />
+          <Toggle label="Auto-rollback on DB failure" sub="Delete blob if PostgreSQL transaction fails"  checked={autoRetry} onChange={setAutoRetry}                                                    disabled={!isSuperuser} />
         </Section>
 
         {/* ── Notifications ─────────────────────────────────────────────────── */}
         <Section title="Notifications" icon={<Bell size={16} />} delay={0.3}>
-          <Toggle label="Notify on successful upload" sub="Toast notification on every successful upload" checked={notifyUpload} onChange={setNotifyUpload} />
-          <Toggle label="Notify on upload failure"    sub="Error details + rollback confirmation"         checked={notifyFail}   onChange={setNotifyFail} />
+          <Toggle label="Notify on successful upload" sub="Toast notification on every successful upload" checked={notifyUpload} onChange={setNotifyUpload} disabled={!isSuperuser} />
+          <Toggle label="Notify on upload failure"    sub="Error details + rollback confirmation"         checked={notifyFail}   onChange={setNotifyFail}   disabled={!isSuperuser} />
         </Section>
 
         {/* ── Appearance ───────────────────────────────────────────────────── */}
         <Section title="Appearance" icon={<Palette size={16} />} delay={0.36}>
-          <Toggle label="Dark mode" sub="Deep navy enterprise theme (always on)" checked={true} onChange={() => toast('Dark mode is always on 🌑')} />
+          <Toggle label="Dark mode" sub="Deep navy enterprise theme (always on)" checked={true} onChange={() => { if (isSuperuser) toast('Dark mode is always on 🌑') }} disabled={!isSuperuser} />
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
             Colour scheme: Saffron · Azure · Deep Navy
           </div>
         </Section>
 
-        {/* ── Save ─────────────────────────────────────────────────────────── */}
-        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={saving}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 28px', background: saving ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg,#f97316,#ea6906)', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, color: saving ? 'rgba(255,255,255,0.3)' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', boxShadow: saving ? 'none' : '0 0 24px rgba(249,115,22,0.35)' }}>
-          {saving ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={15} />}
-          {saving ? 'Saving…' : 'Save Settings'}
-        </motion.button>
+        {/* ── Save (only visible to admins) ─────────────────────────────────── */}
+        {isSuperuser && (
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={saving}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 28px', background: saving ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg,#f97316,#ea6906)', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, color: saving ? 'rgba(255,255,255,0.3)' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', boxShadow: saving ? 'none' : '0 0 24px rgba(249,115,22,0.35)' }}>
+            {saving ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={15} />}
+            {saving ? 'Saving…' : 'Save Settings'}
+          </motion.button>
+        )}
+
       </div>
     </Layout>
   )

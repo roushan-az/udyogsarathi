@@ -1,4 +1,3 @@
-
 import type { AxiosProgressEvent } from 'axios';
 import axios from 'axios';
 import type {
@@ -26,19 +25,15 @@ api.interceptors.request.use((config) => {
 });
 
 // Global 401 handler — clear token and redirect to login
-// Global 401 handler — clear token and redirect to login
 api.interceptors.response.use(
-  (res) => res, 
+  (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      // 1. Clear the invalid or expired token
+      // Use the single authoritative logout method — no redundant
+      // localStorage.removeItem calls here; authService.logout() handles it.
       authService.logout();
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-      
-      // 2. Redirect to login. 
-      // We no longer need to worry about the loop because AppContext
-      // will see the token is gone and halt all initial data fetches.
+
+      // Only redirect if not already on the login page to avoid loops.
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
@@ -50,11 +45,11 @@ api.interceptors.response.use(
 // ── Auth service ──────────────────────────────────────────────────────────────
 
 export interface LoginPayload  { email: string; password: string }
-export interface RegisterPayload { 
-  email: string; 
-  password: string; 
-  full_name: string; 
-  admin_secret?: string; 
+export interface RegisterPayload {
+  email: string;
+  password: string;
+  full_name: string;
+  admin_secret?: string;
 }
 
 export interface TokenResponse {
@@ -72,32 +67,41 @@ export interface UserOut {
 }
 
 export const authService = {
-// src/services/api.ts
 
-// src/services/api.ts
-// src/services/api.ts
+  async login(payload: LoginPayload): Promise<TokenResponse> {
+    const res = await api.post<any>('/auth/login', payload);
 
-async login(payload: LoginPayload): Promise<TokenResponse> {
-  // We use 'any' here temporarily to catch the raw response
-  const res = await api.post<any>('/auth/login', payload);
-  
-  // SUPPORT BOTH: check for camelCase AND snake_case
-  const token = res.data.accessToken || res.data.access_token;
-  
-  if (!token) {
-    console.error("Payload received:", res.data);
-    throw new Error("Login succeeded but no token was found in the response.");
-  }
+    // Support both camelCase (accessToken) and snake_case (access_token)
+    const token = res.data.accessToken || res.data.access_token;
 
-  localStorage.setItem('auth_token', token);
-  
-  // Also save user info if it's in the response
-  if (res.data.user) {
-    localStorage.setItem('auth_user', JSON.stringify(res.data.user));
-  }
+    if (!token) {
+      console.error("Payload received:", res.data);
+      throw new Error("Login succeeded but no token was found in the response.");
+    }
 
-  return res.data;
-},
+    // ✅ FIX: Always wipe the previous session's identity BEFORE writing
+    // the new one. Without this, if the backend doesn't return a user
+    // object (some backends return token only), a stale auth_user from a
+    // previous login — potentially with a different role — would persist
+    // in localStorage and be used to seed currentUser on the next boot.
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+
+    localStorage.setItem('auth_token', token);
+
+    // Persist user identity if the login response includes it.
+    // Normalise to a consistent shape so AppContext can parse it reliably.
+    if (res.data.user) {
+      const u = res.data.user;
+      localStorage.setItem('auth_user', JSON.stringify({
+        fullName:    u.fullName    ?? u.full_name  ?? '',
+        email:       u.email       ?? '',
+        isSuperuser: u.isSuperuser ?? u.is_superuser ?? false,
+      }));
+    }
+
+    return res.data;
+  },
 
   async register(payload: RegisterPayload): Promise<UserOut> {
     const res = await api.post<UserOut>('/auth/register', payload);
@@ -109,6 +113,9 @@ async login(payload: LoginPayload): Promise<TokenResponse> {
     return res.data;
   },
 
+  // ✅ FIX: Single, authoritative logout — one place to clear all auth
+  // state. The 401 interceptor and any logout button both call this;
+  // no other code should touch auth_token / auth_user directly.
   logout() {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
@@ -186,7 +193,7 @@ export const documentService = {
    * Backend returns { downloadUrl, expiresInMinutes }.
    * We open the SAS URL directly — no blob stream needed.
    */
-async downloadDocument(id: string, disposition: 'attachment' | 'inline' = 'attachment'): Promise<{ downloadUrl: string; expiresInMinutes: number }> {
+  async downloadDocument(id: string, disposition: 'attachment' | 'inline' = 'attachment'): Promise<{ downloadUrl: string; expiresInMinutes: number }> {
     const res = await api.get<{ downloadUrl: string; expiresInMinutes: number }>(
       `/documents/${id}/download?disposition=${disposition}`
     );
@@ -216,9 +223,9 @@ export const healthService = {
   },
 };
 
-// src/services/api.ts
+// ── Analytics service ─────────────────────────────────────────────────────────
 
-// Add these interfaces to match app/schemas/analytics.py
+// Interfaces match app/schemas/analytics.py
 export interface AnalyticsKPI {
   totalDocuments: number;
   totalStorage: number;

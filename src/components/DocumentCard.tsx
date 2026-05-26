@@ -92,10 +92,20 @@ const handleView = async () => {
         <div style={{ width: 34, height: 34, borderRadius: 8, background: colors.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <FileText size={15} color={colors.text} />
         </div>
+        {/* Name and Meta */}
         <div style={{ flex: '1 1 140px', minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#f0f4ff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.originalName}</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{formatFileSize(doc.fileSize)} · {formatRelative(doc.uploadedAt)}</div>
-        </div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#f0f4ff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {doc.originalName}
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
+            {/* 👇 This ensures we display the Uploader Name if available */}
+            {doc.uploadedBy ? (
+              <span style={{ color: '#93c5fd', fontWeight: 600 }}>{doc.uploadedBy} · </span>
+            ) : null}
+            {formatFileSize(doc.fileSize)} · {formatRelative(doc.uploadedAt)}
+          </div>
+          </div>
+
         <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 6, background: colors.bg, color: colors.text, fontWeight: 600, flexShrink: 0 }}>{doc.category}</span>
         <span className={`status-badge status-${doc.status}`} style={{ flexShrink: 0 }}>{doc.status}</span>
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>

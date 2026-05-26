@@ -33,7 +33,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
-  const { sidebarCollapsed, setSidebarCollapsed, stats, filters, setFilters } = useApp()
+  const { sidebarCollapsed, setSidebarCollapsed, filters, setFilters } = useApp()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -158,8 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
                 letterSpacing: '0.14em', textTransform: 'uppercase', padding: '0 8px 8px',
               }}>Categories</div>
               {CATEGORIES_BASE.map(({ label, color }) => {
-                const liveCount = stats?.categoryCounts?.[label] || 0
-
+         
                 return (
                   <div key={label} style={{ textDecoration: 'none', display: 'block', cursor: 'pointer' }} onClick={(e) => handleCategoryClick(e, label)}>
                     <div style={{
@@ -171,9 +170,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
                     onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
                       <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0, boxShadow: `0 0 5px ${color}` }} />
                       <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.55)', flex: 1 }}>{label}</span>
-                      <span style={{ fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4 }}>
-                        {liveCount}
-                      </span>
                     </div>
                   </div>
                 )

@@ -251,3 +251,12 @@ export const analyticsService = {
     return res.data;
   }
 };
+
+// ── User service ──────────────────────────────────────────────────────────────
+export const userService = {
+  // Fetch all users (Only accessible to superusers)
+  async getUsers(): Promise<{ id: string; fullName: string; email: string }[]> {
+    const res = await api.get('/users/');
+    return res.data;
+  },
+};

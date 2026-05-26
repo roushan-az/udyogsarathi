@@ -1,6 +1,6 @@
 // src/pages/LoginPage.tsx
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Building2, Mail, Lock, Eye, EyeOff, Loader2, AlertTriangle, Zap } from 'lucide-react'
@@ -15,8 +15,10 @@ export const LoginPage: React.FC = () => {
 
   const from = (location.state as { from?: string })?.from || '/'
 
-  const [email,       setEmail]       = useState('')
-  const [password,    setPassword]    = useState('')
+  // ── Performance Fix: Uncontrolled Inputs ──────────────────────────────────
+  const emailRef    = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
   const [showPass,    setShowPass]    = useState(false)
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState<string | null>(null)
@@ -32,10 +34,14 @@ export const LoginPage: React.FC = () => {
   // ── Validation ────────────────────────────────────────────────────────────
   const validate = (): boolean => {
     const errs: typeof fieldErrors = {}
-    if (!email.trim())              errs.email    = 'Email is required'
-    else if (!email.includes('@'))  errs.email    = 'Enter a valid email address'
-    if (!password)                  errs.password = 'Password is required'
-    else if (password.length < 6)   errs.password = 'Password must be at least 6 characters'
+    const emailVal = emailRef.current?.value || ''
+    const passVal = passwordRef.current?.value || ''
+
+    if (!emailVal.trim())              errs.email    = 'Email is required'
+    else if (!emailVal.includes('@'))  errs.email    = 'Enter a valid email address'
+    if (!passVal)                      errs.password = 'Password is required'
+    else if (passVal.length < 6)       errs.password = 'Password must be at least 6 characters'
+    
     setFieldErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -48,7 +54,10 @@ export const LoginPage: React.FC = () => {
 
     setLoading(true)
     try {
-      await authService.login({ email: email.trim().toLowerCase(), password })
+      const emailVal = emailRef.current?.value || ''
+      const passVal = passwordRef.current?.value || ''
+
+      await authService.login({ email: emailVal.trim().toLowerCase(), password: passVal })
 
       // Fetch the user profile to populate currentUser
       const user = await authService.me()
@@ -68,6 +77,7 @@ export const LoginPage: React.FC = () => {
         ?? (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
         ?? 'Invalid email or password'
       setError(msg)
+      console.error('error', err);
     } finally {
       setLoading(false)
     }
@@ -78,8 +88,6 @@ export const LoginPage: React.FC = () => {
     // Sets a dev token that the FastAPI backend (DEBUG=True) accepts as 'dev-user'
     localStorage.setItem('auth_token', 'dev')
     setCurrentUser({ name: 'Dev Admin', email: 'dev@udyogsarathi.local' , is_superuser: false})
-    //refreshDocuments()
-    //refreshStats()
     toast.success('Dev mode — bypassing auth')
     navigate(from, { replace: true })
   }
@@ -182,8 +190,8 @@ export const LoginPage: React.FC = () => {
                 <Mail size={15} color={fieldErrors.email ? '#f87171' : 'rgba(255,255,255,0.3)'} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                 <input
                   type="email"
-                  value={email}
-                  onChange={e => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })) }}
+                  ref={emailRef}
+                  onChange={() => { if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: undefined })) }}
                   placeholder="admin@company.com"
                   autoComplete="email"
                   style={{
@@ -212,8 +220,8 @@ export const LoginPage: React.FC = () => {
                 <Lock size={15} color={fieldErrors.password ? '#f87171' : 'rgba(255,255,255,0.3)'} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                 <input
                   type={showPass ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => { setPassword(e.target.value); setFieldErrors(p => ({ ...p, password: undefined })) }}
+                  ref={passwordRef}
+                  onChange={() => { if (fieldErrors.password) setFieldErrors(p => ({ ...p, password: undefined })) }}
                   placeholder="••••••••"
                   autoComplete="current-password"
                   style={{

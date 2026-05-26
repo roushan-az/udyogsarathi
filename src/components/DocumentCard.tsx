@@ -100,7 +100,7 @@ const handleView = async () => {
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
             {/* 👇 This ensures we display the Uploader Name if available */}
             {doc.uploadedBy ? (
-              <span style={{ color: '#93c5fd', fontWeight: 600 }}>{doc.uploadedBy} · </span>
+              <>Uploaded by <span style={{ color: '#93c5fd', fontWeight: 600 }}>{doc.uploadedBy} · </span></>
             ) : null}
             {formatFileSize(doc.fileSize)} · {formatRelative(doc.uploadedAt)}
           </div>

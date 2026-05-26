@@ -49,17 +49,3 @@ jobs:
           VITE_API_URL: "https://undyogsarathiapi-gpfhc8f6bda8exef.southeastasia-01.azurewebsites.net/api"
           VITE_USE_MOCK: "false"  
 
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_CALM_BUSH_0DB371D1E }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: "close"
-          app_location: "/"
-          api_location: ""

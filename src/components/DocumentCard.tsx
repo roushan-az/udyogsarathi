@@ -171,8 +171,13 @@ const handleView = async () => {
 
         {/* Name */}
         <div title={doc.originalName} style={{ fontSize: 13.5, fontWeight: 600, color: '#f0f4ff', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.originalName}</div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-mono)', marginBottom: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.fileName}</div>
-
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {doc.uploadedBy ? (
+            <>Uploaded by <span style={{ color: '#93c5fd', fontWeight: 600 }}>{doc.uploadedBy}</span></>
+          ) : (
+            <span style={{ fontFamily: 'var(--font-mono)' }}>{doc.fileName}</span>
+          )}
+        </div>
         {/* Category + status */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: colors.bg, color: colors.text, border: `1px solid ${colors.accent}25` }}>{doc.category}</span>

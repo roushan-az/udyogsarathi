@@ -35,7 +35,7 @@ export const DocumentsPage: React.FC = () => {
       setPage(1);
     }
   }, [filters?.category]);
-  
+
   useEffect(() => {
     if (isSuperuser) {
       userService.getUsers().then(users => {
@@ -119,7 +119,13 @@ export const DocumentsPage: React.FC = () => {
         {/* User Dropdown (Admin Only) */}
         {isSuperuser && (
           <select value={uploaderFilter} onChange={e => { setUploaderFilter(e.target.value); setPage(1); }}
-            style={{ height: 36, padding: '0 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, fontSize: 12.5, color: '#3b82f6', cursor: 'pointer', fontWeight: 600 }}>
+            style={{ 
+              height: 36, padding: '0 10px', background: 'rgba(255,255,255,0.05)', 
+              border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, fontSize: 12.5, 
+              color: '#3b82f6', cursor: 'pointer', fontWeight: 600,
+              // 👇 Added flex sizing and text truncation for mobile
+              flex: '1 1 160px', minWidth: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' 
+            }}>
             <option value="All" style={{background: '#1a2b4e'}}>👥 All Users</option>
             {userList.map(u => (
               <option key={u.id} value={u.fullName} style={{background: '#1a2b4e'}}>

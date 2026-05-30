@@ -12,6 +12,7 @@ import { UploadPage }      from './pages/UploadPage'
 import { DocumentsPage }   from './pages/DocumentsPage'
 import { AnalyticsPage }   from './pages/AnalyticsPage'
 import { SettingsPage }    from './pages/SettingsPage'
+import { AdminPage }       from './pages/AdminPage' // <-- Added AdminPage import
 import { authService }     from './services/api'
 import './App.css'
 import { LoadingScreen } from './components/Loadingscreen'
@@ -66,13 +67,6 @@ function AppShell() {
     return <>{children}</>
   }
 
-  const AdminPlaceholder = () => (
-      <div style={{ color: 'white', padding: 50 }}>
-        <h1>Admin Panel</h1>
-        <p>User management coming soon...</p>
-      </div>
-    )
-
   return (
     <Routes>
       {/* ── Public ── */}
@@ -86,7 +80,8 @@ function AppShell() {
       <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
       <Route path="/settings"  element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
-      <Route path="/admin"     element={<AdminRoute><AdminPlaceholder /></AdminRoute>}/>
+      {/* ── Admin Route Updated ── */}
+      <Route path="/admin"     element={<AdminRoute><AdminPage /></AdminRoute>}/>
 
       {/* ── Catch-all ── */}
       <Route path="*" element={<Navigate to="/" replace />} />

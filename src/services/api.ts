@@ -67,7 +67,29 @@ export interface UserOut {
 }
 
 export const authService = {
+  
+  async resetPasswordWithSecret(email: string, newPassword: string, secretKey: string): Promise<void> {
+    // This expects your FastAPI backend to accept the secret key for validation
+    await api.post('/auth/reset-password-secret', { 
+      email, 
+      new_password: newPassword, 
+      admin_secret: secretKey 
+    });
+  },
 
+  // Inside api.ts -> authService
+  async requestPasswordReset(email: string): Promise<void> {
+    await api.post('/auth/forgot-password', { email });
+  },
+
+  async resetPasswordWithOTP(email: string, otp: string, newPassword: string): Promise<void> {
+    await api.post('/auth/reset-password', { 
+      email, 
+      otp, 
+      new_password: newPassword 
+    });
+  },
+  
   async login(payload: LoginPayload): Promise<TokenResponse> {
     const res = await api.post<any>('/auth/login', payload);
 
@@ -259,4 +281,41 @@ export const userService = {
     const res = await api.get('/users/');
     return res.data;
   },
+};
+
+/// ── Admin service ─────────────────────────────────────────────────────────────
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  isActive: boolean;
+  isSuperuser: boolean;
+  createdAt: string;
+}
+
+export const adminService = {
+  async getAllUsers(): Promise<AdminUser[]> {
+    const res = await api.get<AdminUser[]>('/users/'); 
+    return res.data;
+  },
+  
+  async deleteUser(id: string): Promise<void> {
+    // Changed to hit the specific permanent delete route on the backend
+    await api.delete(`/users/${id}/delete`);
+  },
+  
+  async updateUserRole(id: string, isSuperuser: boolean): Promise<void> {
+    // FIXED: Changed from .patch() to .put()
+    await api.put(`/users/${id}/role`, { is_superuser: isSuperuser });
+  },
+  
+  async updateUserStatus(id: string, isActive: boolean): Promise<void> {
+    // FIXED: Changed from .patch() to .put()
+    await api.put(`/users/${id}/status`, { is_active: isActive });
+  },
+  
+  async resetUserPassword(id: string, newPassword: string): Promise<void> {
+    await api.post(`/users/${id}/reset-password`, { new_password: newPassword });
+  }
 };

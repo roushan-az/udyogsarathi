@@ -5,18 +5,11 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Upload, FolderOpen, BarChart3, Settings,
-  ChevronLeft, ChevronRight, Building2, Database, X
+  ChevronLeft, ChevronRight, Building2, Database, X,
+  Shield
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import type { DocumentCategory } from '../types'
-
-const NAV_ITEMS = [
-  { to: '/',           icon: LayoutDashboard, label: 'Dashboard'      },
-  { to: '/upload',     icon: Upload,          label: 'Upload Document' },
-  { to: '/documents',  icon: FolderOpen,      label: 'Documents'      },
-  { to: '/analytics',  icon: BarChart3,       label: 'Analytics'      },
-  { to: '/settings',   icon: Settings,        label: 'Settings'       },
-]
 
 const CATEGORIES_BASE: { label: DocumentCategory; color: string }[] = [
   { label: 'Sales',     color: '#f97316' },
@@ -33,24 +26,34 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
-  const { sidebarCollapsed, setSidebarCollapsed, filters, setFilters } = useApp()
+  const { sidebarCollapsed, setSidebarCollapsed, filters, setFilters, currentUser } = useApp()
   const location = useLocation()
   const navigate = useNavigate()
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
   const showExpanded = isMobile ? true : !sidebarCollapsed
 
-  // Navigate to category - DocumentsPage will filter from cached documents
+  // Dynamically build NAV_ITEMS based on user role (No duplicate global declaration)
+  const NAV_ITEMS = [
+    { to: '/',           icon: LayoutDashboard, label: 'Dashboard'      },
+    { to: '/upload',     icon: Upload,          label: 'Upload Document' },
+    { to: '/documents',  icon: FolderOpen,      label: 'Documents'      },
+    { to: '/analytics',  icon: BarChart3,       label: 'Analytics'      },
+    { to: '/settings',   icon: Settings,        label: 'Settings'       },
+  ]
+
+  if (currentUser?.is_superuser) {
+    NAV_ITEMS.push({ to: '/admin', icon: Shield, label: 'Admin Panel' })
+  }
+
   const handleCategoryClick = (_e: React.MouseEvent, categoryLabel: DocumentCategory) => {
     setFilters({ ...filters, category: categoryLabel })
     navigate(`/documents?category=${encodeURIComponent(categoryLabel)}`)
     if (onMobileClose) onMobileClose()
   }
 
-  // Navigate to Documents page with All filter
   const handleNavClick = (to: string) => {
     if (to === '/documents') {
-      // Reset to "All" category - DocumentsPage will filter from cache
       const resetFilters = { ...filters, category: 'All' as any }
       setFilters(resetFilters)
     }
@@ -158,7 +161,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onMobileClose }) => {
                 letterSpacing: '0.14em', textTransform: 'uppercase', padding: '0 8px 8px',
               }}>Categories</div>
               {CATEGORIES_BASE.map(({ label, color }) => {
-         
                 return (
                   <div key={label} style={{ textDecoration: 'none', display: 'block', cursor: 'pointer' }} onClick={(e) => handleCategoryClick(e, label)}>
                     <div style={{

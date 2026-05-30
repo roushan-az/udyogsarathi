@@ -283,7 +283,7 @@ export const userService = {
   },
 };
 
-// ── Admin service ─────────────────────────────────────────────────────────────
+/// ── Admin service ─────────────────────────────────────────────────────────────
 
 export interface AdminUser {
   id: string;
@@ -296,21 +296,26 @@ export interface AdminUser {
 
 export const adminService = {
   async getAllUsers(): Promise<AdminUser[]> {
-    const res = await api.get<AdminUser[]>('/users/'); // Ensure backend returns list of users
+    const res = await api.get<AdminUser[]>('/users/'); 
     return res.data;
   },
+  
   async deleteUser(id: string): Promise<void> {
-    await api.delete(`/users/${id}`);
+    // Changed to hit the specific permanent delete route on the backend
+    await api.delete(`/users/${id}/delete`);
   },
+  
   async updateUserRole(id: string, isSuperuser: boolean): Promise<void> {
-    await api.patch(`/users/${id}/role`, { is_superuser: isSuperuser });
+    // FIXED: Changed from .patch() to .put()
+    await api.put(`/users/${id}/role`, { is_superuser: isSuperuser });
   },
+  
   async updateUserStatus(id: string, isActive: boolean): Promise<void> {
-    await api.patch(`/users/${id}/status`, { is_active: isActive });
+    // FIXED: Changed from .patch() to .put()
+    await api.put(`/users/${id}/status`, { is_active: isActive });
   },
+  
   async resetUserPassword(id: string, newPassword: string): Promise<void> {
     await api.post(`/users/${id}/reset-password`, { new_password: newPassword });
   }
 };
-
-

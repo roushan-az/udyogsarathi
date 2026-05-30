@@ -293,14 +293,19 @@ const UserRow: React.FC<{
                     fn: () => { setMenuOpen(false); onToggleActive(user) }, danger: user.isActive
                   },
                   { icon: <Trash2 size={13} />, label: 'Delete User', fn: () => { setMenuOpen(false); onDelete(user) }, danger: true },
-                ].map((item, i) => (
-                  <button key={i} onClick={item.fn} disabled={item.label === 'Delete User' && isSelf}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 11px', borderRadius: 8, fontSize: 12.5, color: item.danger ? '#f87171' : 'rgba(255,255,255,0.75)', background: 'transparent', cursor: (item.label === 'Delete User' && isSelf) ? 'not-allowed' : 'pointer', opacity: (item.label === 'Delete User' && isSelf) ? 0.3 : 1, transition: 'background 0.1s', textAlign: 'left' as const, border: 'none' }}
-                    onMouseEnter={e => { if (!(item.label === 'Delete User' && isSelf)) (e.currentTarget as HTMLButtonElement).style.background = item.danger ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.06)' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}>
-                    {item.icon} {item.label}
-                  </button>
-                ))}
+             ].map((item, i) => {
+                  // Catch all destructive actions for the current user
+                  const isActionDisabled = isSelf && (item.label === 'Delete User' || item.label === 'Deactivate Account' || item.label === 'Demote to User');
+                  
+                  return (
+                    <button key={i} onClick={item.fn} disabled={isActionDisabled}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 11px', borderRadius: 8, fontSize: 12.5, color: item.danger ? '#f87171' : 'rgba(255,255,255,0.75)', background: 'transparent', cursor: isActionDisabled ? 'not-allowed' : 'pointer', opacity: isActionDisabled ? 0.3 : 1, transition: 'background 0.1s', textAlign: 'left' as const, border: 'none' }}
+                      onMouseEnter={e => { if (!isActionDisabled) (e.currentTarget as HTMLButtonElement).style.background = item.danger ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.06)' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}>
+                      {item.icon} {item.label}
+                    </button>
+                  );
+                })}
               </motion.div>
             </>
           )}

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Building2, Mail, Lock, Eye, EyeOff, Loader2, AlertTriangle, Zap } from 'lucide-react'
+import { Building2, Mail, Lock, Eye, EyeOff, Loader2, AlertTriangle, Key } from 'lucide-react'
 import { authService } from '../services/api'
 import { useApp } from '../context/AppContext'
 import toast from 'react-hot-toast'
@@ -18,11 +18,14 @@ export const LoginPage: React.FC = () => {
   // ── Performance Fix: Uncontrolled Inputs ──────────────────────────────────
   const emailRef    = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
+  const secretRef   = useRef<HTMLInputElement>(null)
 
   const [showPass,    setShowPass]    = useState(false)
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState<string | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string; secret?: string }>({})
+
+  const [isResetMode, setIsResetMode] = useState(false)
 
   // If already authenticated, redirect straight to app
   useEffect(() => {
@@ -36,12 +39,15 @@ export const LoginPage: React.FC = () => {
     const errs: typeof fieldErrors = {}
     const emailVal = emailRef.current?.value || ''
     const passVal = passwordRef.current?.value || ''
+    const secretVal = secretRef.current?.value || ''
 
     if (!emailVal.trim())              errs.email    = 'Email is required'
     else if (!emailVal.includes('@'))  errs.email    = 'Enter a valid email address'
     if (!passVal)                      errs.password = 'Password is required'
     else if (passVal.length < 6)       errs.password = 'Password must be at least 6 characters'
     
+    if (isResetMode && !secretVal)     errs.secret   = 'Admin secret key is required'
+
     setFieldErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -57,39 +63,37 @@ export const LoginPage: React.FC = () => {
       const emailVal = emailRef.current?.value || ''
       const passVal = passwordRef.current?.value || ''
 
-      await authService.login({ email: emailVal.trim().toLowerCase(), password: passVal })
+      if (isResetMode) {
+        const secretVal = secretRef.current?.value || ''
 
-      // Fetch the user profile to populate currentUser
-      const user = await authService.me()
-      setCurrentUser({ name: user.fullName, email: user.email, is_superuser: user.isSuperuser })
+        const localEnvSecret = import.meta.env.VITE_ADMIN_RESET_SECRET
+        if (localEnvSecret && secretVal !== localEnvSecret) {
+          throw new Error("Invalid admin secret key")
+        }
 
-      // Kick off data fetch now that we have a token
-      refreshDocuments()
-      refreshStats()
+        await authService.resetPasswordWithSecret(emailVal, passVal, secretVal)
+        toast.success("Password reset successfully. You can now log in.")
+        setIsResetMode(false) // Swap back to login
+      } else {  
+        await authService.login({ email: emailVal.trim().toLowerCase(), password: passVal })
+        // Fetch the user profile to populate currentUser
+        const user = await authService.me()
+        setCurrentUser({ name: user.fullName, email: user.email, is_superuser: user.isSuperuser })
 
-      toast.success(`Welcome back, ${user.fullName.split(' ')[0]}!`)
-      navigate(from, { replace: true })
+        // Kick off data fetch now that we have a token
+        refreshDocuments()
+        refreshStats()
 
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { error?: { message?: string }; detail?: string } } })
-          ?.response?.data?.error?.message
-        ?? (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        ?? 'Invalid email or password'
+        toast.success(`Welcome back, ${user.fullName.split(' ')[0]}!`)
+        navigate(from, { replace: true })
+      }
+    } catch (err: any) {
+      const msg = err.message || err?.response?.data?.error?.message || err?.response?.data?.detail || 'Authentication failed'
       setError(msg)
       console.error('error', err);
     } finally {
       setLoading(false)
     }
-  }
-
-  // ── Dev shortcut ──────────────────────────────────────────────────────────
-  const handleDevLogin = async () => {
-    // Sets a dev token that the FastAPI backend (DEBUG=True) accepts as 'dev-user'
-    localStorage.setItem('auth_token', 'dev')
-    setCurrentUser({ name: 'Dev Admin', email: 'dev@udyogsarathi.local' , is_superuser: false})
-    toast.success('Dev mode — bypassing auth')
-    navigate(from, { replace: true })
   }
 
   return (
@@ -149,14 +153,21 @@ export const LoginPage: React.FC = () => {
           backdropFilter: 'blur(20px)',
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
         }}>
+          
           <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f0f4ff', marginBottom: 6 }}>
-            Sign in to your account
+            {isResetMode ? 'Reset your password' : 'Sign in to your account'}
           </h2>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 28 }}>
-            Don't have an account?{' '}
-            <Link to="/register" style={{ color: '#f97316', textDecoration: 'none', fontWeight: 600 }}>
-              Create one free
-            </Link>
+            {isResetMode ? (
+              'Use your environment secret key to force a reset.'
+            ) : (
+              <>
+                Don't have an account?{' '}
+                <Link to="/register" style={{ color: '#f97316', textDecoration: 'none', fontWeight: 600 }}>
+                  Create one free
+                </Link>
+              </>
+            )}
           </p>
 
           {/* Error banner */}
@@ -214,7 +225,7 @@ export const LoginPage: React.FC = () => {
             {/* Password */}
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Password
+                {isResetMode ? 'New Password' : 'Password'}
               </label>
               <div style={{ position: 'relative' }}>
                 <Lock size={15} color={fieldErrors.password ? '#f87171' : 'rgba(255,255,255,0.3)'} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -245,6 +256,41 @@ export const LoginPage: React.FC = () => {
               )}
             </div>
 
+            {/* Forgot Password Link (Only in Login Mode) */}
+            {!isResetMode && (
+                <div style={{ textAlign: 'right', marginBottom: 24 }}>
+                    <button type="button" onClick={() => setIsResetMode(true)} style={{ background: 'none', border: 'none', color: '#f97316', fontSize: 12, cursor: 'pointer' }}>
+                        Forgot password?
+                    </button>
+                </div>
+            )}
+
+            {/* Secret Key (Only in Reset Mode) */}
+            {isResetMode && (
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Admin Secret Key
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Key size={15} color={fieldErrors.secret ? '#f87171' : 'rgba(255,255,255,0.3)'} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  <input
+                    type="password"
+                    ref={secretRef}
+                    onChange={() => { if (fieldErrors.secret) setFieldErrors(p => ({ ...p, secret: undefined })) }}
+                    placeholder="Enter ENV secret key"
+                    style={{
+                      width: '100%', height: 44,
+                      background: 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${fieldErrors.secret ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                      borderRadius: 10, padding: '0 14px 0 38px',
+                      fontSize: 14, color: '#f0f4ff', outline: 'none',
+                    }}
+                  />
+                </div>
+                {fieldErrors.secret && <p style={{ fontSize: 12, color: '#f87171', marginTop: 5 }}>{fieldErrors.secret}</p>}
+              </div>
+            )}
+
             {/* Submit */}
             <motion.button
               type="submit"
@@ -261,36 +307,18 @@ export const LoginPage: React.FC = () => {
               }}
             >
               {loading
-                ? <><Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} /> Signing in…</>
-                : 'Sign In'}
+                ? <><Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} /> {isResetMode ? 'Resetting…' : 'Signing in…'}</>
+                : (isResetMode ? 'Reset Password' : 'Sign In')}
             </motion.button>
+
+            {/* Back to Login */}
+            {isResetMode && (
+                <button type="button" onClick={() => setIsResetMode(false)} style={{ width: '100%', marginTop: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 13, cursor: 'pointer' }}>
+                    Cancel & back to login
+                </button>
+            )}
           </form>
 
-          {/* Divider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', whiteSpace: 'nowrap' }}>or for development</span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
-          </div>
-
-          {/* Dev bypass button */}
-          <button
-            onClick={handleDevLogin}
-            style={{
-              width: '100%', height: 42, borderRadius: 10, cursor: 'pointer',
-              background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)',
-              color: '#60a5fa', fontSize: 13.5, fontWeight: 600,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.18)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
-          >
-            <Zap size={14} /> Continue as Dev (DEBUG mode)
-          </button>
-          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', textAlign: 'center', marginTop: 8 }}>
-            Uses Bearer "dev" token — only works when FastAPI DEBUG=True
-          </p>
         </div>
 
         {/* Footer */}

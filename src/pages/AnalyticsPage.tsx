@@ -203,7 +203,7 @@ export const AnalyticsPage: React.FC = () => {
 
       {/* ── Storage growth + Radar ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 20, marginBottom: 20 }}>
-        <Panel title="Storage Growth" subtitle="Cumulative Azure Blob usage — last 7 months" delay={0.28}>
+        <Panel title="Storage Growth" subtitle="Cumulative Cloudflare R2 usage — last 7 months" delay={0.28}>
           {loading ? <Skeleton height={200} /> : (
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={data?.monthlyStorage ?? []}>

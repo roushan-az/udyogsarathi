@@ -17,6 +17,7 @@ import { authService }     from './services/api'
 import './App.css'
 import { LoadingScreen } from './components/Loadingscreen'
 import { useEffect, useRef } from 'react'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 
 
 const toastBase = {
@@ -72,6 +73,7 @@ function AppShell() {
       {/* ── Public ── */}
       <Route path="/login"    element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       {/* ── Protected ── */}
       <Route path="/"          element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
